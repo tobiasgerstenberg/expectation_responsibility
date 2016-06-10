@@ -3,7 +3,8 @@ This repository contains materials of the paper "Lucky or clever? From changed e
 
 # Links to Experiments 
 
-All experiments can be accessed in the code/flash subfolder. 
+All experiments can be accessed in the [code/flash](https://github.com/tobiasgerstenberg/expectation_responsibility/tree/master/code/flash)  subfolder. 
+
 Here are direct links to the experiments: 
 
 [Experiment 1: Goalie condition](experiment1_goalie.html)
