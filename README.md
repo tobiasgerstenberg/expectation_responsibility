@@ -23,10 +23,13 @@ Here are direct links to the experiments:
 
 ## Data 
 
-- The raw data file can be accessed here. 
+The raw data file can be accessed [here](https://github.com/tobiasgerstenberg/expectation_responsibility/blob/master/data/data.csv). 
 
 ## Analyses 
 
-The analysis and plotting code can be accessed here. 
+The analysis and plotting code can be accessed [here](https://github.com/tobiasgerstenberg/expectation_responsibility/tree/master/code/R). 
+
+A direct link to the analysis and plots is [here](https://cdn.rawgit.com/tobiasgerstenberg/expectation_responsibility/master/code/R/analysis.html).
+
 
 
