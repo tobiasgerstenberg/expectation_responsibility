@@ -1,0 +1,43 @@
+---
+title: "Data analysis"
+author: "Tobias Gerstenberg"
+date: "June 10, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load required packages 
+
+```{r packages, eval=FALSE}
+library(lsr)
+library(psych) #useful functions
+library(stats) #useful functions
+library(afex) #mixed ANOVAS
+library(MASS) #ordinal logistic regression
+library(rms) #ordinal logistic regression #2
+library(ggplot2) #plotting
+library(xtable) #exporting tables into latex
+library(lmtest) #likelihood ratio test
+library(scales) #rescaling
+library(lme4) #mixed effects model
+
+library(mclust) #clustering
+
+library(DAAG) #cross validation
+library(boot) #boostrapping
+
+library(stringr) #deal with strings
+library(dplyr) #data frame manipulations
+library(tidyr) #data restructuring
+
+```
+
+## Read data files 
+
+```{r packages, eval=FALSE}
+rm(list=ls())
+df.data = read.csv("https://github.com/tobiasgerstenberg/expectation_responsibility/data/data.csv",header=T,stringsAsFactors=F)
+```
