@@ -751,8 +751,7 @@ softmax = function(beta,theta,reward){
 agent.bad = function(beta,df,reward){
   df = df %&gt;%
     mutate(
-      outcome_counterfactual = ifelse(outcome == 1 &amp; outcome_counterfactual == 1, probability_counterfactual, outcome_counterfactual),
-      outcome_counterfactual = ifelse(outcome == 0 &amp; outcome_counterfactual == 0, probability_counterfactual, outcome_counterfactual)) %&gt;%
+      outcome_counterfactual = ifelse(outcome == outcome_counterfactual, probability_counterfactual, outcome_counterfactual)) %&gt;%
     select(outcome,outcome_counterfactual)
   softmax(beta,1-df,reward)
 }
@@ -766,8 +765,7 @@ agent.average = function(beta,df,reward){
 agent.good = function(beta,df,reward){
   df = df %&gt;%
     mutate(
-      outcome_counterfactual = ifelse(outcome == 1 &amp; outcome_counterfactual == 1, probability_counterfactual, outcome_counterfactual),
-      outcome_counterfactual = ifelse(outcome == 0 &amp; outcome_counterfactual == 0, probability_counterfactual, outcome_counterfactual)) %&gt;%
+      outcome_counterfactual = ifelse(outcome == outcome_counterfactual, probability_counterfactual, outcome_counterfactual)) %&gt;%
     select(outcome,outcome_counterfactual)
   softmax(beta,df,reward)
 }</code></pre>
@@ -1809,8 +1807,7 @@ softmax = function(beta,theta,reward){
 agent.bad = function(beta,df,reward){
   df = df %&gt;%
     mutate(
-      outcome_counterfactual = ifelse(outcome == 1 &amp; outcome_counterfactual == 1, probability_counterfactual, outcome_counterfactual),
-      outcome_counterfactual = ifelse(outcome == 0 &amp; outcome_counterfactual == 0, probability_counterfactual, outcome_counterfactual)) %&gt;%
+      outcome_counterfactual = ifelse(outcome == outcome_counterfactual, probability_counterfactual, outcome_counterfactual)) %&gt;%
     select(outcome,outcome_counterfactual)
   softmax(beta,1-df,reward)
 }
@@ -1824,8 +1821,7 @@ agent.average = function(beta,df,reward){
 agent.good = function(beta,df,reward){
   df = df %&gt;%
     mutate(
-      outcome_counterfactual = ifelse(outcome == 1 &amp; outcome_counterfactual == 1, probability_counterfactual, outcome_counterfactual),
-      outcome_counterfactual = ifelse(outcome == 0 &amp; outcome_counterfactual == 0, probability_counterfactual, outcome_counterfactual)) %&gt;%
+      outcome_counterfactual = ifelse(outcome == outcome_counterfactual, probability_counterfactual, outcome_counterfactual)) %&gt;%
     select(outcome,outcome_counterfactual)
   softmax(beta,df,reward)
 }
