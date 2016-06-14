@@ -29,7 +29,7 @@ The raw data file can be accessed [here](https://github.com/tobiasgerstenberg/ex
 
 The analysis and plotting code can be accessed [here](https://github.com/tobiasgerstenberg/expectation_responsibility/tree/master/code/R). 
 
-A direct link to the analysis and plots is [here](https://github.com/tobiasgerstenberg/expectation_responsibility/blob/master/code/R/analysis.html).
+A direct link to the analysis and plots is [here](https://rawgit.com/tobiasgerstenberg/expectation_responsibility/master/code/R/analysis.html).
 
 
 
