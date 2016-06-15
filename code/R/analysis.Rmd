@@ -1171,10 +1171,31 @@ print(p)
 
 - Empirical results and model predictions for the responsibility judgment phase 
 
+### Plots for goalie and spinner condition in Experiment 1
+- Change the `experiment.name` variable to determine which plot is to be printed. 
+
+```{r goalie_spinner_plots}
+
+experiment.name = "goalie_original"
+# experiment.name = "spinner_original"
+
+df.plot = responsibility.list[[experiment.name]]
+df.plot = df.plot %>%
+  mutate(probability = paste0(probability,'%'),
+         outcome = factor(outcome,levels = c("wrong", "correct"), labels = c("negative outcome",
+                                                                               "positive outcome")))
+
+plot.responsibility.no_model(df.plot)
+
+```
+
+
+
+
 ### Plots for different clusters of participants in Experiment 2 
 
 - Shows mean responsibility ratings for the identified clusters of participants in the goalie and spinner condition of Experiment 2 
-- You can change the experiment.name and cluster.index variables to determine which plot is to be printed. 
+- Change the `experiment.name` and `cluster.index` variables to determine which plot is to be printed. 
 
 ```{r plot_responsibility_cluster}
 
