@@ -17,7 +17,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # Read in packages 
 
 ```{r packages, echo=T, collapse=T, message=F}
-library(lsr)
+library(lsr) #useful functions
 library(psych) #useful functions
 library(stats) #useful functions
 library(afex) #mixed ANOVAS
@@ -1185,12 +1185,9 @@ df.plot = df.plot %>%
          outcome = factor(outcome,levels = c("wrong", "correct"), labels = c("negative outcome",
                                                                                "positive outcome")))
 
-plot.responsibility.no_model(df.plot)
+plot.responsibility.no_model(df.plot) + ggtitle(paste0("Experiment: ", experiment.name))
 
 ```
-
-
-
 
 ### Plots for different clusters of participants in Experiment 2 
 
