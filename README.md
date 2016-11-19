@@ -4,7 +4,7 @@ This repository contains materials of the paper "Lucky or clever? From changed e
 
 ## Links to Experiments 
 
-The code of all experiments can be accessed in the [code/flash](https://github.com/tobiasgerstenberg/expectation_responsibility/tree/master/code/flash)  subfolder. 
+The code of all experiments can be accessed in the [code/flash](https://github.com/tobiasgerstenberg/expectation_responsibility/tree/master/code/flash) subfolder. 
 
 Here are direct links to the experiments: 
 
@@ -31,6 +31,10 @@ The raw data file can be accessed [here](https://github.com/tobiasgerstenberg/ex
 The analysis and plotting code can be accessed [here](https://github.com/tobiasgerstenberg/expectation_responsibility/tree/master/code/R). 
 
 A direct link to the analysis and plots is [here](https://rawgit.com/tobiasgerstenberg/expectation_responsibility/master/code/R/analysis.html).
+
+## Presentation 
+
+A presentation of the results can be accessed [here](https://github.com/tobiasgerstenberg/expectation_responsibility/tree/master/presentation/lucky_clever_presentation.pdf).
 
 
 
