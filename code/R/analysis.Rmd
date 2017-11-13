@@ -1,5 +1,5 @@
 ---
-title: "Lucky or clever? From changed expectations to attributions of responsibility"
+title: "Lucky or clever? From expectations to attributions of responsibility"
 author: "Tobias Gerstenberg"
 date: "November 13, 2017"
 output: 
