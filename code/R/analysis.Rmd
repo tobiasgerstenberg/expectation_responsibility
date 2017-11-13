@@ -561,7 +561,7 @@ df.posteriors = df.posteriors %>%
 				 probability_counterfactual = ifelse(probability == 45.5, 25.5, probability_counterfactual),
 				 probability = probability/100,
 				 probability_counterfactual = probability_counterfactual/100,
-				 experiment = factor(experiment,levels = c("goalie", "spinner", "manager", "gardener")))%>%
+				 experiment = factor(experiment,levels = c("goalie", "spinner", "gardener", "manager")))%>%
 	select(experiment,outcome,probability,everything()) %>%
 	arrange(experiment,outcome,probability)
 
@@ -713,8 +713,8 @@ knitr::kable(df.tmp, caption = "Scaled expected reward of each agent type")
 
 ```{r difference_in_expectations}
 
-inference.names = c(rep("goalie_spinner",2),"manager","gardener")
-experiment.names = c("goalie","spinner","manager","gardener")
+inference.names = c(rep("goalie_spinner",2),"gardener","manager")
+experiment.names = c("goalie","spinner","gardener","manager")
 
 exp_r_difference.list = list()
 
@@ -1220,7 +1220,7 @@ for(i in experiment.names[1:2]){
 	df.plot = responsibility.list[[i]]
 
 	df.plot = df.plot %>% mutate(probability = paste0(probability,'%'), outcome = factor(outcome,levels = c("wrong", "correct"), labels = c("negative outcome", "positive outcome"))) %>% merge(.,cluster.list[[i]]) %>% filter(cluster == j)
-	plot.responsibility.no_model(df.plot,2)
+	p = plot.responsibility.no_model(df.plot,2)
 	print(p)
 	}
 }
@@ -1305,7 +1305,7 @@ model.name = "difference_pivotality"
 
 df.plot = df.regression %>%
   mutate_at(vars(p.difference,p.pivotality,p.difference_pivotality,p.optimality,mean),funs(abs)) %>%
-  mutate(experiment = factor(experiment,levels = c("goalie","spinner","manager","gardener")),
+  mutate(experiment = factor(experiment,levels = c("goalie","spinner","gardener","manager")),
          outcome = factor(outcome,levels = c(0,1), labels = c("negative", "positive")))
 
 ggplot(df.plot,aes_string(x=paste0("p.",model.name),y="mean",color="experiment"))+
