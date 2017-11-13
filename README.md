@@ -1,6 +1,6 @@
 # Lucky or clever?
 
-This repository contains materials of the paper "Lucky or clever? From changed expectations to attributions of responsibility".
+This repository contains materials of the paper "Lucky or clever? From expectations to attributions of responsibility".
 
 ## Links to Experiments 
 
