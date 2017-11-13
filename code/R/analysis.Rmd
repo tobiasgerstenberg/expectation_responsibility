@@ -1,13 +1,15 @@
 ---
 title: "Lucky or clever? From changed expectations to attributions of responsibility"
 author: "Tobias Gerstenberg"
-date: "June 13, 2016"
+date: "November 13, 2017"
 output: 
   html_document:
     toc: true
     toc_depth: 3
     toc_float: true 
-    theme: sandstone
+    theme: default
+    highlight: tango
+    smart: false
 ---
 
 ```{r setup, include=FALSE}
@@ -21,9 +23,8 @@ library(lsr) #useful functions
 library(psych) #useful functions
 library(stats) #useful functions
 library(afex) #mixed ANOVAS
-library(MASS) #ordinal logistic regression
-library(rms) #ordinal logistic regression #2
-library(ggplot2) #plotting
+library(MASS) #useful functions
+library(rms) #ordinal logistic regression
 library(xtable) #exporting tables into latex
 library(lmtest) #likelihood ratio test
 library(scales) #rescaling
@@ -31,11 +32,12 @@ library(lme4) #mixed effects model
 library(mclust) #clustering
 library(DAAG) #cross validation
 library(boot) #boostrapping
+library(Hmisc) #useful functions
 library(stringr) #deal with strings
-library(dplyr) #data frame manipulations
-library(tidyr) #data restructuring
 library(RCurl) #read CSV from github 
+library(tidyverse)
 ```
+
 
 # Read and structure data file 
 
@@ -46,323 +48,319 @@ rm(list=ls())
 df.data = read.csv(text = getURL("https://raw.githubusercontent.com/tobiasgerstenberg/expectation_responsibility/master/data/data.csv"),header=T,stringsAsFactors=F)
 
 goalie_spinner_situations = c("wrong_20","wrong_80",
-                      "correct_80","correct_20",
-                      "wrong_40","wrong_60",
-                      "correct_40","correct_60",
-                      "wrong_20","wrong_40",
-                      "correct_40","correct_20",
-                      "wrong_60","wrong_80",
-                      "correct_80","correct_60")
+											"correct_80","correct_20",
+											"wrong_40","wrong_60",
+											"correct_40","correct_60",
+											"wrong_20","wrong_40",
+											"correct_40","correct_20",
+											"wrong_60","wrong_80",
+											"correct_80","correct_60")
 
 situation_labels = paste0(rep(c("wrong_","correct_"),each=4), seq(20,80,20))
 
 situation_labels2 = paste0(
-  rep(c("negative_","positive_"),each=4),
-  rep(rep(c("suboptimal_","optimal_"),each=2),2),
-  rep(c("nonpivotal","pivotal"),2))
+	rep(c("negative_","positive_"),each=4),
+	rep(rep(c("suboptimal_","optimal_"),each=2),2),
+	rep(c("nonpivotal","pivotal"),2))
 
 agent_labels = c("bad_agent","average_agent","good_agent")
 
 #GOALIE EXPERIMENT
 
 df.goalie_original = df.data %>%
-  filter(experiment == "goalie_original") %>%
-  mutate(data_tmp = data %>% strsplit('\n') %>% unlist %>% strsplit(','),
-         extra_tmp = extra %>% strsplit('\n') %>% unlist %>% strsplit(','))
+	filter(experiment == "goalie_original") %>%
+	mutate(data_tmp = data %>% strsplit('\n') %>% unlist %>% strsplit(','),
+				 extra_tmp = extra %>% strsplit('\n') %>% unlist %>% strsplit(','))
 
 df.goalie_original.wide = matrix(unlist(df.goalie_original$data_tmp),nrow=nrow(df.goalie_original),byrow=T) %>%
-  as.data.frame(stringsAsFactors=F) %>%
-  mutate_each(funs(as.numeric)) %>%
-  setNames(paste0(c("round_","ratingLeft_","ratingRight_","time_"),rep(1:8,each=4)))
+	as.data.frame(stringsAsFactors=F) %>%
+	mutate_all(funs(as.numeric)) %>%
+	setNames(paste0(c("round_","ratingLeft_","ratingRight_","time_"),rep(1:8,each=4)))
 
 df.goalie_original.long = df.goalie_original.wide %>%
-  mutate(id = 1:nrow(.)) %>%
-  wideToLong %>%
-  select(-within,-time) %>%
-  mutate(round = round + 1) %>%
-  gather(key = situation, value = rating,c(ratingLeft,ratingRight)) %>%
-  arrange(id,round,situation) %>%
-  mutate(situation = rep(goalie_spinner_situations,length(unique(id))),
-         situation = factor(situation,levels = situation_labels),
-         outcome = str_extract_all(situation,c("wrong|correct"),simplify=T) %>% as.vector,
-         probability = str_extract_all(situation,c("20|40|60|80"),simplify=T) %>% as.vector) %>%
-  select(id,round,situation,outcome,probability,rating)
+	mutate(id = 1:nrow(.)) %>%
+	wideToLong %>%
+	select(-within,-time) %>%
+	mutate(round = round + 1) %>%
+	gather(key = situation, value = rating,c(ratingLeft,ratingRight)) %>%
+	arrange(id,round,situation) %>%
+	mutate(situation = rep(goalie_spinner_situations,length(unique(id))),
+				 situation = factor(situation,levels = situation_labels),
+				 outcome = str_extract_all(situation,c("wrong|correct"),simplify=T) %>% as.vector,
+				 probability = str_extract_all(situation,c("20|40|60|80"),simplify=T) %>% as.vector) %>%
+	select(id,round,situation,outcome,probability,rating)
 
 
 #SPINNER EXPERIMENT
 
 df.spinner_original = df.data %>%
-  filter(experiment == "spinner_original") %>%
-  mutate(data_tmp = data %>% strsplit('\n') %>% unlist %>% strsplit(','),
-         extra_tmp = extra %>% strsplit('\n') %>% unlist %>% strsplit(','))
+	filter(experiment == "spinner_original") %>%
+	mutate(data_tmp = data %>% strsplit('\n') %>% unlist %>% strsplit(','),
+				 extra_tmp = extra %>% strsplit('\n') %>% unlist %>% strsplit(','))
 
 df.spinner_original.wide = matrix(unlist(df.spinner_original$data_tmp),nrow=nrow(df.spinner_original),byrow=T) %>%
-  as.data.frame(stringsAsFactors=F) %>%
-  mutate_each(funs(as.numeric)) %>%
-  setNames(paste0(c("round_","ratingLeft_","ratingRight_","time_"),rep(1:8,each=4)))
+	as.data.frame(stringsAsFactors=F) %>%
+	mutate_all(funs(as.numeric)) %>%
+	setNames(paste0(c("round_","ratingLeft_","ratingRight_","time_"),rep(1:8,each=4)))
 
 df.spinner_original.long = df.spinner_original.wide %>%
-  mutate(id = 1:nrow(.)) %>%
-  wideToLong %>%
-  select(-within,-time) %>%
-  mutate(round = round + 1) %>%
-  gather(key = situation, value = rating,c(ratingLeft,ratingRight)) %>%
-  arrange(id,round,situation) %>%
-  mutate(situation = rep(goalie_spinner_situations,length(unique(id))),
-         situation = factor(situation,levels = paste0(rep(c("wrong_","correct_"),each=4), seq(20,80,20))),
-         outcome = str_extract_all(situation,c("wrong|correct"),simplify=T) %>% as.vector,
-         probability = str_extract_all(situation,c("20|40|60|80"),simplify=T) %>% as.vector) %>%
-  select(id,round,situation,outcome,probability,rating)
+	mutate(id = 1:nrow(.)) %>%
+	wideToLong %>%
+	select(-within,-time) %>%
+	mutate(round = round + 1) %>%
+	gather(key = situation, value = rating,c(ratingLeft,ratingRight)) %>%
+	arrange(id,round,situation) %>%
+	mutate(situation = rep(goalie_spinner_situations,length(unique(id))),
+				 situation = factor(situation,levels = paste0(rep(c("wrong_","correct_"),each=4), seq(20,80,20))),
+				 outcome = str_extract_all(situation,c("wrong|correct"),simplify=T) %>% as.vector,
+				 probability = str_extract_all(situation,c("20|40|60|80"),simplify=T) %>% as.vector) %>%
+	select(id,round,situation,outcome,probability,rating)
 
 # GOALIE AGENTS EXPERIMENT
 
 df.goalie_skill = df.data %>%
-  filter(experiment == "goalie_skill") %>%
-  mutate(data = str_replace_all(data,"penalty_miss","wrong"),
-         data = str_replace_all(data,"penalty_save","correct"),
-         data = str_replace_all(data,"bad goalkeeper","bad_agent"),
-         data = str_replace_all(data,"average goalkeeper","average_agent"),
-         data = str_replace_all(data,"skilled goalkeeper","good_agent")) %>%
-  mutate(data_tmp = data %>% strsplit('\n') %>% unlist %>% strsplit(','),
-         extra_tmp = extra %>% strsplit('\n') %>% unlist %>% strsplit(','))
+	filter(experiment == "goalie_skill") %>%
+	mutate(data = str_replace_all(data,"penalty_miss","wrong"),
+				 data = str_replace_all(data,"penalty_save","correct"),
+				 data = str_replace_all(data,"bad goalkeeper","bad_agent"),
+				 data = str_replace_all(data,"average goalkeeper","average_agent"),
+				 data = str_replace_all(data,"skilled goalkeeper","good_agent")) %>%
+	mutate(data_tmp = data %>% strsplit('\n') %>% unlist %>% strsplit(','),
+				 extra_tmp = extra %>% strsplit('\n') %>% unlist %>% strsplit(','))
 
 df.goalie_skill.wide = matrix(unlist(df.goalie_skill$data_tmp),nrow=nrow(df.goalie_skill),byrow=T) %>%
-  as.data.frame(stringsAsFactors=F) %>%
-  setNames(c(paste(c("judgmentRound_","situationLeft_","ratingLeft_","situationRight_","ratingRight_","time_"),rep(1:8,each=6),sep=""),
-             paste(c("inferenceRound_","agentTop_","ratingTop_","agentMiddle_","ratingMiddle_","agentBottom_","ratingBottom_"),rep(1:8,each=7),sep="")))
+	as.data.frame(stringsAsFactors=F) %>%
+	setNames(c(paste(c("judgmentRound_","situationLeft_","ratingLeft_","situationRight_","ratingRight_","time_"),rep(1:8,each=6),sep=""),
+						 paste(c("inferenceRound_","agentTop_","ratingTop_","agentMiddle_","ratingMiddle_","agentBottom_","ratingBottom_"),rep(1:8,each=7),sep="")))
 
 df.goalie_skill.long = df.goalie_skill.wide %>%
-  mutate(id = 1:nrow(.)) %>%
-  wideToLong() %>%
-  select(-within) %>%
-  mutate_each(funs(as.numeric),contains("rating"),judgmentRound) %>%
-  mutate(judgmentRound = judgmentRound + 1) %>%
-  arrange(id,judgmentRound)
+	mutate(id = 1:nrow(.)) %>%
+	wideToLong() %>%
+	select(-within) %>%
+	mutate_at(vars(contains("rating"),judgmentRound),funs(as.numeric)) %>%
+	mutate(judgmentRound = judgmentRound + 1) %>%
+	arrange(id,judgmentRound)
 
 # responsibility judgments
 df.goalie_skill.long.responsibility = df.goalie_skill.long %>%
-  select(id,judgmentRound,situationLeft,ratingLeft,situationRight,ratingRight) %>%
-  gather(key = situation, value = rating,c(ratingLeft,ratingRight)) %>%
-  select(-situationLeft,-situationRight) %>%
-  rename(round = judgmentRound) %>%
-  arrange(id,round,situation) %>%
-  mutate(situation = rep(goalie_spinner_situations,length(unique(id))),
-         situation = factor(situation,levels = situation_labels),
-         outcome = str_extract_all(situation,c("wrong|correct"),simplify=T) %>% as.vector,
-         probability = str_extract_all(situation,c("20|40|60|80"),simplify=T) %>% as.vector) %>%
-  select(id,round,situation,outcome,probability,rating)
+	select(id,judgmentRound,situationLeft,ratingLeft,situationRight,ratingRight) %>%
+	gather(key = situation, value = rating,c(ratingLeft,ratingRight)) %>%
+	select(-situationLeft,-situationRight) %>%
+	rename(round = judgmentRound) %>%
+	arrange(id,round,situation) %>%
+	mutate(situation = rep(goalie_spinner_situations,length(unique(id))),
+				 situation = factor(situation,levels = situation_labels),
+				 outcome = str_extract_all(situation,c("wrong|correct"),simplify=T) %>% as.vector,
+				 probability = str_extract_all(situation,c("20|40|60|80"),simplify=T) %>% as.vector) %>%
+	select(id,round,situation,outcome,probability,rating)
 
 # agent inferences
 df.goalie_skill.long.inference = df.goalie_skill.long %>%
-  select(id,inferenceRound,contains("Top"),contains("Middle"),contains("Bottom")) %>%
-  rename(agent_1 = agentTop, agent_2 = agentMiddle, agent_3 = agentBottom,
-         rating_1 = ratingTop, rating_2 = ratingMiddle, rating_3 = ratingBottom,
-         situation = inferenceRound) %>%
-  wideToLong() %>%
-  select(-within) %>%
-  mutate(situation = factor(situation,levels = situation_labels),
-         agent = factor(agent,levels = agent_labels),
-         outcome = str_extract_all(situation,c("wrong|correct"),simplify=T) %>% as.vector,
-         probability = str_extract_all(situation,c("20|40|60|80"),simplify=T) %>% as.vector) %>%
-  arrange(id,situation,agent) %>%
-  select(id,situation,outcome,probability,agent,rating)
+	select(id,inferenceRound,contains("Top"),contains("Middle"),contains("Bottom")) %>%
+	rename(agent_1 = agentTop, agent_2 = agentMiddle, agent_3 = agentBottom,
+				 rating_1 = ratingTop, rating_2 = ratingMiddle, rating_3 = ratingBottom,
+				 situation = inferenceRound) %>%
+	wideToLong() %>%
+	select(-within) %>%
+	mutate(situation = factor(situation,levels = situation_labels),
+				 agent = factor(agent,levels = agent_labels),
+				 outcome = str_extract_all(situation,c("wrong|correct"),simplify=T) %>% as.vector,
+				 probability = str_extract_all(situation,c("20|40|60|80"),simplify=T) %>% as.vector) %>%
+	arrange(id,situation,agent) %>%
+	select(id,situation,outcome,probability,agent,rating)
 
 # SPINNER AGENTS EXPERIMENT
 
 df.spinner_skill = df.data %>%
-  filter(experiment == "spinner_skill") %>%
-  mutate(data = str_replace_all(data,"prediction_wrong","wrong"),
-         data = str_replace_all(data,"prediction_correct","correct"),
-         data = str_replace_all(data,"bad player","bad_agent"),
-         data = str_replace_all(data,"average player","average_agent"),
-         data = str_replace_all(data,"skilled player","good_agent")) %>%
-  mutate(data_tmp = data %>% strsplit('\n') %>% unlist %>% strsplit(','),
-         extra_tmp = extra %>% strsplit('\n') %>% unlist %>% strsplit(','))
+	filter(experiment == "spinner_skill") %>%
+	mutate(data = str_replace_all(data,"prediction_wrong","wrong"),
+				 data = str_replace_all(data,"prediction_correct","correct"),
+				 data = str_replace_all(data,"bad player","bad_agent"),
+				 data = str_replace_all(data,"average player","average_agent"),
+				 data = str_replace_all(data,"skilled player","good_agent")) %>%
+	mutate(data_tmp = data %>% strsplit('\n') %>% unlist %>% strsplit(','),
+				 extra_tmp = extra %>% strsplit('\n') %>% unlist %>% strsplit(','))
 
 df.spinner_skill.wide = matrix(unlist(df.spinner_skill$data_tmp),nrow=nrow(df.spinner_skill),byrow=T) %>%
-  as.data.frame(stringsAsFactors=F) %>%
-  setNames(c(paste(c("judgmentRound_","situationLeft_","ratingLeft_","situationRight_","ratingRight_","time_"),rep(1:8,each=6),sep=""),
-             paste(c("inferenceRound_","agentTop_","ratingTop_","agentMiddle_","ratingMiddle_","agentBottom_","ratingBottom_"),rep(1:8,each=7),sep="")))
+	as.data.frame(stringsAsFactors=F) %>%
+	setNames(c(paste(c("judgmentRound_","situationLeft_","ratingLeft_","situationRight_","ratingRight_","time_"),rep(1:8,each=6),sep=""),
+						 paste(c("inferenceRound_","agentTop_","ratingTop_","agentMiddle_","ratingMiddle_","agentBottom_","ratingBottom_"),rep(1:8,each=7),sep="")))
 
 df.spinner_skill.long = df.spinner_skill.wide %>%
-  mutate(id = 1:nrow(.)) %>%
-  wideToLong() %>%
-  select(-within) %>%
-  mutate_each(funs(as.numeric),contains("rating"),judgmentRound) %>%
-  mutate(judgmentRound = judgmentRound + 1) %>%
-  arrange(id,judgmentRound)
+	mutate(id = 1:nrow(.)) %>%
+	wideToLong() %>%
+	select(-within) %>%
+	mutate_at(vars(contains("rating"),judgmentRound),funs(as.numeric)) %>%
+	mutate(judgmentRound = judgmentRound + 1) %>%
+	arrange(id,judgmentRound)
 
 # responsibility judgments
 df.spinner_skill.long.responsibility = df.spinner_skill.long %>%
-  select(id,judgmentRound,situationLeft,ratingLeft,situationRight,ratingRight) %>%
-  gather(key = situation, value = rating,c(ratingLeft,ratingRight)) %>%
-  select(-situationLeft,-situationRight) %>%
-  rename(round = judgmentRound) %>%
-  arrange(id,round,situation) %>%
-  mutate(situation = rep(goalie_spinner_situations,length(unique(id))),
-         situation = factor(situation,levels = situation_labels),
-         outcome = str_extract_all(situation,c("wrong|correct"),simplify=T) %>% as.vector,
-         probability = str_extract_all(situation,c("20|40|60|80"),simplify=T) %>% as.vector) %>%
-  select(id,round,situation,outcome,probability,rating)
+	select(id,judgmentRound,situationLeft,ratingLeft,situationRight,ratingRight) %>%
+	gather(key = situation, value = rating,c(ratingLeft,ratingRight)) %>%
+	select(-situationLeft,-situationRight) %>%
+	rename(round = judgmentRound) %>%
+	arrange(id,round,situation) %>%
+	mutate(situation = rep(goalie_spinner_situations,length(unique(id))),
+				 situation = factor(situation,levels = situation_labels),
+				 outcome = str_extract_all(situation,c("wrong|correct"),simplify=T) %>% as.vector,
+				 probability = str_extract_all(situation,c("20|40|60|80"),simplify=T) %>% as.vector) %>%
+	select(id,round,situation,outcome,probability,rating)
 
 # agent inferences
 df.spinner_skill.long.inference = df.spinner_skill.long %>%
-  select(id,inferenceRound,contains("Top"),contains("Middle"),contains("Bottom")) %>%
-  rename(agent_1 = agentTop, agent_2 = agentMiddle, agent_3 = agentBottom,
-         rating_1 = ratingTop, rating_2 = ratingMiddle, rating_3 = ratingBottom,
-         situation = inferenceRound) %>%
-  wideToLong() %>%
-  select(-within) %>%
-  mutate(situation = factor(situation,levels = situation_labels),
-         agent = factor(agent,levels = agent_labels),
-         outcome = str_extract_all(situation,c("wrong|correct"),simplify=T) %>% as.vector,
-         probability = str_extract_all(situation,c("20|40|60|80"),simplify=T) %>% as.vector) %>%
-  arrange(id,situation,agent) %>%
-  select(id,situation,outcome,probability,agent,rating)
+	select(id,inferenceRound,contains("Top"),contains("Middle"),contains("Bottom")) %>%
+	rename(agent_1 = agentTop, agent_2 = agentMiddle, agent_3 = agentBottom,
+				 rating_1 = ratingTop, rating_2 = ratingMiddle, rating_3 = ratingBottom,
+				 situation = inferenceRound) %>%
+	wideToLong() %>%
+	select(-within) %>%
+	mutate(situation = factor(situation,levels = situation_labels),
+				 agent = factor(agent,levels = agent_labels),
+				 outcome = str_extract_all(situation,c("wrong|correct"),simplify=T) %>% as.vector,
+				 probability = str_extract_all(situation,c("20|40|60|80"),simplify=T) %>% as.vector) %>%
+	arrange(id,situation,agent) %>%
+	select(id,situation,outcome,probability,agent,rating)
+
+# MANAGER AGENTS EXPERIMENT
+
+df.manager_skill = df.data %>%
+	filter(experiment == "manager_skill") %>%
+	mutate(data = str_replace_all(data,"bad manager","bad_agent"),
+				 data = str_replace_all(data,"average manager","average_agent"),
+				 data = str_replace_all(data,"skilled manager","good_agent")) %>%
+	mutate(data_tmp = data %>% strsplit('\n') %>% unlist %>% strsplit(','),
+				 extra_tmp = extra %>% strsplit('\n') %>% unlist %>% strsplit(','))
+
+df.manager_skill.wide = matrix(unlist(df.manager_skill$data_tmp),nrow=nrow(df.manager_skill),byrow=T) %>%
+	as.data.frame(stringsAsFactors=F) %>%
+	select(-1) %>%
+	setNames(c(
+		paste(c("situation_","rating_"),rep(1:8,each=2),sep=""),
+		paste(c("inferenceRound_","agentTop_","ratingTop_","agentMiddle_","ratingMiddle_","agentBottom_","ratingBottom_"),rep(1:8,each=7),sep="")))
+
+
+df.manager_skill.long = df.manager_skill.wide %>%
+	mutate(id = 1:nrow(.)) %>%
+	wideToLong() %>%
+	select(-within) %>%
+	mutate_at(vars(contains("rating")),funs(as.numeric)) %>%
+	arrange(id)
+
+# responsibility judgments
+df.manager_skill.long.responsibility = df.manager_skill.long %>%
+	select(id,situation,rating) %>%
+	mutate(situation = factor(situation,levels = situation_labels2),
+				 outcome = str_extract_all(situation,c("negative|positive"),simplify=T) %>% as.vector,
+				 probability = str_extract_all(situation,c("suboptimal|optimal"),simplify=T) %>% as.vector,
+				 pivotality = str_extract_all(situation,c("nonpivotal|pivotal"),simplify=T) %>% as.vector) %>%
+	select(id,situation,outcome,probability,pivotality,rating)
+
+# agent inferences
+df.manager_skill.long.inference = df.manager_skill.long %>%
+	select(id,inferenceRound,contains("Top"),contains("Middle"),contains("Bottom")) %>%
+	rename(situation = inferenceRound) %>%
+	rename(agent_1 = agentTop, agent_2 = agentMiddle, agent_3 = agentBottom,
+				 rating_1 = ratingTop, rating_2 = ratingMiddle, rating_3 = ratingBottom) %>%
+	wideToLong() %>%
+	select(-within) %>%
+	mutate(situation = factor(situation,levels = situation_labels2),
+				 agent = factor(agent,levels = agent_labels),
+				 outcome = str_extract_all(situation,c("negative|positive"),simplify=T) %>% as.vector,
+				 probability = str_extract_all(situation,c("suboptimal|optimal"),simplify=T) %>% as.vector,
+				 pivotality = str_extract_all(situation,c("nonpivotal|pivotal"),simplify=T) %>% as.vector) %>%
+	arrange(id,situation,outcome,probability,pivotality,agent,rating) %>%
+	select(id,situation,outcome,probability,pivotality,agent,rating)
 
 # GARDENER AGENTS EXPERIMENT
 
 df.gardener_skill = df.data %>%
-  filter(experiment == "gardener_skill") %>%
-  mutate(data = str_replace_all(data,"bad gardener","bad_agent"),
-         data = str_replace_all(data,"average gardener","average_agent"),
-         data = str_replace_all(data,"skilled gardener","good_agent")) %>%
-  mutate(data_tmp = data %>% strsplit('\n') %>% unlist %>% strsplit(','),
-         extra_tmp = extra %>% strsplit('\n') %>% unlist %>% strsplit(','))
+	filter(experiment == "gardener_skill") %>%
+	mutate(data = str_replace_all(data,"bad gardener","bad_agent"),
+				 data = str_replace_all(data,"average gardener","average_agent"),
+				 data = str_replace_all(data,"skilled gardener","good_agent")) %>%
+	mutate(data_tmp = data %>% strsplit('\n') %>% unlist %>% strsplit(','),
+				 extra_tmp = extra %>% strsplit('\n') %>% unlist %>% strsplit(','))
 
 df.gardener_skill.wide = matrix(unlist(df.gardener_skill$data_tmp),nrow=nrow(df.gardener_skill),byrow=T) %>%
-  as.data.frame(stringsAsFactors=F) %>%
-  select(-1) %>%
-  setNames(c(
-    paste(c("situation_","rating_"),rep(1:8,each=2),sep=""),
-    paste(c("inferenceRound_","agentTop_","ratingTop_","agentMiddle_","ratingMiddle_","agentBottom_","ratingBottom_"),rep(1:8,each=7),sep="")))
+	as.data.frame(stringsAsFactors=F) %>%
+	select(-1) %>%
+	setNames(c(
+		paste(c("situation_","rating_"),rep(1:8,each=2),sep=""),
+		paste(c("inferenceRound_","agentTop_","ratingTop_","agentMiddle_","ratingMiddle_","agentBottom_","ratingBottom_"),rep(1:8,each=7),sep="")))
 
 df.gardener_skill.long = df.gardener_skill.wide %>%
-  mutate(id = 1:nrow(.)) %>%
-  wideToLong() %>%
-  # select(-within) %>%
-  mutate_each(funs(as.numeric),contains("rating")) %>%
-  arrange(id)
+	mutate(id = 1:nrow(.)) %>%
+	wideToLong() %>%
+	# select(-within) %>%
+	mutate_at(vars(contains("rating")),funs(as.numeric)) %>%
+	arrange(id)
 
 # responsibility judgments
 df.gardener_skill.long.responsibility = df.gardener_skill.long %>%
-  select(id,situation,rating) %>%
-  mutate(situation = factor(situation,levels = situation_labels2),
-         outcome = str_extract_all(situation,c("negative|positive"),simplify=T) %>% as.vector,
-         probability = str_extract_all(situation,c("suboptimal|optimal"),simplify=T) %>% as.vector,
-         pivotality = str_extract_all(situation,c("nonpivotal|pivotal"),simplify=T) %>% as.vector) %>%
-  select(id,situation,outcome,probability,pivotality,rating)
+	select(id,situation,rating) %>%
+	mutate(situation = factor(situation,levels = situation_labels2),
+				 outcome = str_extract_all(situation,c("negative|positive"),simplify=T) %>% as.vector,
+				 probability = str_extract_all(situation,c("suboptimal|optimal"),simplify=T) %>% as.vector,
+				 pivotality = str_extract_all(situation,c("nonpivotal|pivotal"),simplify=T) %>% as.vector) %>%
+	select(id,situation,outcome,probability,pivotality,rating)
 
 # agent inferences
 df.gardener_skill.long.inference = df.gardener_skill.long %>%
-  select(id,inferenceRound,contains("Top"),contains("Middle"),contains("Bottom")) %>%
-  rename(situation = inferenceRound) %>%
-  rename(agent_1 = agentTop, agent_2 = agentMiddle, agent_3 = agentBottom,
-         rating_1 = ratingTop, rating_2 = ratingMiddle, rating_3 = ratingBottom) %>%
-  wideToLong() %>%
-  select(-within) %>%
-  mutate(situation = factor(situation,levels = situation_labels2),
-         agent = factor(agent,levels = agent_labels),
-         outcome = str_extract_all(situation,c("negative|positive"),simplify=T) %>% as.vector,
-         probability = str_extract_all(situation,c("suboptimal|optimal"),simplify=T) %>% as.vector,
-         pivotality = str_extract_all(situation,c("nonpivotal|pivotal"),simplify=T) %>% as.vector) %>%
-  arrange(id,situation,outcome,probability,pivotality,agent,rating) %>%
-  select(id,situation,outcome,probability,pivotality,agent,rating)
+	select(id,inferenceRound,contains("Top"),contains("Middle"),contains("Bottom")) %>%
+	rename(situation = inferenceRound) %>%
+	rename(agent_1 = agentTop, agent_2 = agentMiddle, agent_3 = agentBottom,
+				 rating_1 = ratingTop, rating_2 = ratingMiddle, rating_3 = ratingBottom) %>%
+	wideToLong() %>%
+	select(-within) %>%
+	mutate(situation = factor(situation,levels = situation_labels2),
+				 agent = factor(agent,levels = agent_labels),
+				 outcome = str_extract_all(situation,c("negative|positive"),simplify=T) %>% as.vector,
+				 probability = str_extract_all(situation,c("suboptimal|optimal"),simplify=T) %>% as.vector,
+				 pivotality = str_extract_all(situation,c("nonpivotal|pivotal"),simplify=T) %>% as.vector) %>%
+	arrange(id,situation,outcome,probability,pivotality,agent,rating) %>%
+	select(id,situation,outcome,probability,pivotality,agent,rating)
 
 
 # GARDENER NO SKILL
 
 df.gardener_noskill = df.data %>%
-  filter(experiment == "gardener_noskill") %>%
-  mutate(data = str_replace_all(data,"bad gardener","bad_agent"),
-         data = str_replace_all(data,"average gardener","average_agent"),
-         data = str_replace_all(data,"skilled gardener","good_agent")) %>%
-  mutate(data_tmp = data %>% strsplit('\n') %>% unlist %>% strsplit(','),
-         extra_tmp = extra %>% strsplit('\n') %>% unlist %>% strsplit(','))
+	filter(experiment == "gardener_noskill") %>%
+	mutate(data = str_replace_all(data,"bad gardener","bad_agent"),
+				 data = str_replace_all(data,"average gardener","average_agent"),
+				 data = str_replace_all(data,"skilled gardener","good_agent")) %>%
+	mutate(data_tmp = data %>% strsplit('\n') %>% unlist %>% strsplit(','),
+				 extra_tmp = extra %>% strsplit('\n') %>% unlist %>% strsplit(','))
 
 df.gardener_noskill.wide = matrix(unlist(df.gardener_noskill$data_tmp),nrow=nrow(df.gardener_noskill),byrow=T) %>%
-  as.data.frame(stringsAsFactors=F) %>%
-  select(-1) %>%
-  setNames(paste0(c("situation_","rating_"),rep(1:12,each=2)))
+	as.data.frame(stringsAsFactors=F) %>%
+	select(-1) %>%
+	setNames(paste0(c("situation_","rating_"),rep(1:12,each=2)))
 
 df.gardener_noskill.long = df.gardener_noskill.wide %>%
-  mutate(id = 1:nrow(.)) %>%
-  wideToLong() %>%
-  select(-within) %>%
-  mutate(situation = factor(situation,levels = c(situation_labels2,"negative_chance_nonpivotal",
-                                                 "negative_chance_pivotal","positive_chance_nonpivotal",
-                                                 "positive_chance_pivotal")),
-         outcome = str_extract_all(situation,c("negative|positive"),simplify=T) %>% as.vector,
-         probability = str_extract_all(situation,c("suboptimal|optimal|chance"),simplify=T) %>% as.vector,
-         pivotality = str_extract_all(situation,c("nonpivotal|pivotal"),simplify=T) %>% as.vector,
-         rating = as.numeric(rating)) %>%
-  arrange(id,situation,outcome,probability,pivotality,rating) %>%
-  select(id,situation,outcome,probability,pivotality,rating)
-
-# MANAGER AGENTS EXPERIMENT
-
-df.manager_skill = df.data %>%
-  filter(experiment == "manager_skill") %>%
-  mutate(data = str_replace_all(data,"bad manager","bad_agent"),
-         data = str_replace_all(data,"average manager","average_agent"),
-         data = str_replace_all(data,"skilled manager","good_agent")) %>%
-  mutate(data_tmp = data %>% strsplit('\n') %>% unlist %>% strsplit(','),
-         extra_tmp = extra %>% strsplit('\n') %>% unlist %>% strsplit(','))
-
-df.manager_skill.wide = matrix(unlist(df.manager_skill$data_tmp),nrow=nrow(df.manager_skill),byrow=T) %>%
-  as.data.frame(stringsAsFactors=F) %>%
-  select(-1) %>%
-  setNames(c(
-    paste(c("situation_","rating_"),rep(1:8,each=2),sep=""),
-    paste(c("inferenceRound_","agentTop_","ratingTop_","agentMiddle_","ratingMiddle_","agentBottom_","ratingBottom_"),rep(1:8,each=7),sep="")))
-
-
-df.manager_skill.long = df.manager_skill.wide %>%
-  mutate(id = 1:nrow(.)) %>%
-  wideToLong() %>%
-  select(-within) %>%
-  mutate_each(funs(as.numeric),contains("rating")) %>%
-  arrange(id)
-
-# responsibility judgments
-df.manager_skill.long.responsibility = df.manager_skill.long %>%
-  select(id,situation,rating) %>%
-  mutate(situation = factor(situation,levels = situation_labels2),
-         outcome = str_extract_all(situation,c("negative|positive"),simplify=T) %>% as.vector,
-         probability = str_extract_all(situation,c("suboptimal|optimal"),simplify=T) %>% as.vector,
-         pivotality = str_extract_all(situation,c("nonpivotal|pivotal"),simplify=T) %>% as.vector) %>%
-  select(id,situation,outcome,probability,pivotality,rating)
-
-# agent inferences
-df.manager_skill.long.inference = df.manager_skill.long %>%
-  select(id,inferenceRound,contains("Top"),contains("Middle"),contains("Bottom")) %>%
-  rename(situation = inferenceRound) %>%
-  rename(agent_1 = agentTop, agent_2 = agentMiddle, agent_3 = agentBottom,
-         rating_1 = ratingTop, rating_2 = ratingMiddle, rating_3 = ratingBottom) %>%
-  wideToLong() %>%
-  select(-within) %>%
-  mutate(situation = factor(situation,levels = situation_labels2),
-         agent = factor(agent,levels = agent_labels),
-         outcome = str_extract_all(situation,c("negative|positive"),simplify=T) %>% as.vector,
-         probability = str_extract_all(situation,c("suboptimal|optimal"),simplify=T) %>% as.vector,
-         pivotality = str_extract_all(situation,c("nonpivotal|pivotal"),simplify=T) %>% as.vector) %>%
-  arrange(id,situation,outcome,probability,pivotality,agent,rating) %>%
-  select(id,situation,outcome,probability,pivotality,agent,rating)
+	mutate(id = 1:nrow(.)) %>%
+	wideToLong() %>%
+	select(-within) %>%
+	mutate(situation = factor(situation,levels = c(situation_labels2,"negative_chance_nonpivotal", "negative_chance_pivotal","positive_chance_nonpivotal", "positive_chance_pivotal")), outcome = str_extract_all(situation,c("negative|positive"),simplify=T) %>% as.vector, probability = str_extract_all(situation,c("suboptimal|optimal|chance"),simplify=T) %>% as.vector,
+				 pivotality = str_extract_all(situation,c("nonpivotal|pivotal"),simplify=T) %>% as.vector,
+				 rating = as.numeric(rating)) %>%
+	arrange(id,situation,outcome,probability,pivotality,rating) %>%
+	select(id,situation,outcome,probability,pivotality,rating)
 
 # save data frames in lists
 
 responsibility.list = list(goalie_original = df.goalie_original.long,
-                       spinner_original = df.spinner_original.long,
-                       goalie = df.goalie_skill.long.responsibility,
-                       spinner = df.spinner_skill.long.responsibility,
-                       gardener = df.gardener_skill.long.responsibility,
-                       gardener_noskill = df.gardener_noskill.long,
-                       manager = df.manager_skill.long.responsibility)
+											 spinner_original = df.spinner_original.long,
+											 goalie = df.goalie_skill.long.responsibility,
+											 spinner = df.spinner_skill.long.responsibility,
+											 manager = df.manager_skill.long.responsibility,
+											 gardener = df.gardener_skill.long.responsibility,
+											 gardener_noskill = df.gardener_noskill.long)
 
 inference.list = list(goalie = df.goalie_skill.long.inference,
-                   spinner = df.spinner_skill.long.inference,
-                   gardener = df.gardener_skill.long.inference,
-                   manager = df.manager_skill.long.inference)
+									 spinner = df.spinner_skill.long.inference,
+									 manager = df.manager_skill.long.inference,
+									 gardener = df.gardener_skill.long.inference)
 
 # remove unnecessary variables
 rm(list = setdiff(ls(),c("df.data","responsibility.list","inference.list")))
@@ -407,8 +405,22 @@ demographics.list[["goalie_spinner"]] = df.data %>%
   as.data.frame(stringsAsFactors = F) %>%
   setNames(var.names)
 
-# Experiment 3a
+# Experiment 3
 var.names = c("index","difficulty","gender","age","time")
+
+demographics.list[["manager"]] = df.data %>%
+  filter(experiment %in% c("manager_skill")) %>%
+  select(extra) %>%
+  unlist %>%
+  strsplit("\n") %>%
+  unlist %>%
+  strsplit(",") %>%
+  unlist %>%
+  matrix(ncol = length(var.names),byrow=T) %>%
+  as.data.frame(stringsAsFactors = F) %>%
+  setNames(var.names)
+
+# Experiment 4a
 demographics.list[["gardener"]] = df.data %>%
   filter(experiment %in% c("gardener_skill")) %>%
   select(extra) %>%
@@ -421,22 +433,9 @@ demographics.list[["gardener"]] = df.data %>%
   as.data.frame(stringsAsFactors = F) %>%
   setNames(var.names)
 
-# Experiment 3b
+# Experiment 4b
 demographics.list[["gardener_noskill"]] = df.data %>%
   filter(experiment %in% c("gardener_noskill")) %>%
-  select(extra) %>%
-  unlist %>%
-  strsplit("\n") %>%
-  unlist %>%
-  strsplit(",") %>%
-  unlist %>%
-  matrix(ncol = length(var.names),byrow=T) %>%
-  as.data.frame(stringsAsFactors = F) %>%
-  setNames(var.names)
-
-# Experiment 4
-demographics.list[["manager"]] = df.data %>%
-  filter(experiment %in% c("manager_skill")) %>%
   select(extra) %>%
   unlist %>%
   strsplit("\n") %>%
@@ -454,7 +453,7 @@ df.descriptive_summary = as.data.frame(matrix(NA,ncol=6,nrow=0)) %>%
 
 for(i in 1:length(demographics.list)){
   df.tmp = demographics.list[[names(demographics.list)[i]]] %>%
-    mutate_each(funs(as.numeric)) %>%
+    mutate_all(funs(as.numeric)) %>%
     summarise(experiment = names(demographics.list)[i],
               age.mean = mean(age),
               age.sd = sd(age),
@@ -462,7 +461,7 @@ for(i in 1:length(demographics.list)){
               time.mean = mean(time),
               time.sd = sd(time)
               ) %>%
-    mutate_each(funs(round(.,2)),-experiment)
+    mutate_at(vars(-experiment),funs(round(.,2)))
   df.descriptive_summary = rbind(df.descriptive_summary,df.tmp)
 }
 
@@ -481,9 +480,9 @@ condition.names = c("goalie","spinner")
 
 for (i in 1:length(condition.names)){
 df.tmp = responsibility.list[[condition.names[i]]] %>%
-  group_by(id,situation) %>%
-  summarise(rating = mean(rating)) %>%
-  spread(situation,rating)
+	group_by(id,situation) %>%
+	summarise(rating = mean(rating)) %>%
+	spread(situation,rating)
 
 # Gaussian mixture model classification 
 set.seed(2)
@@ -505,33 +504,32 @@ rm("condition.names")
 
 # softmax decision function
 softmax = function(beta,theta,reward){
-  exp(beta*theta[,1]*reward)/rowSums(exp(beta*theta*reward))
+	exp(beta*theta[,1]*reward)/rowSums(exp(beta*theta*reward))
 }
 
 # agent decision functions
 agent.bad = function(beta,df,reward){
-  df = df %>%
-    mutate(
-      outcome_counterfactual = ifelse(outcome == outcome_counterfactual, probability_counterfactual, outcome_counterfactual)) %>%
-    select(outcome,outcome_counterfactual)
-  softmax(beta,1-df,reward)
+	df = df %>%
+		mutate(
+			outcome_counterfactual = ifelse(outcome == outcome_counterfactual, probability_counterfactual, outcome_counterfactual)) %>%
+		select(outcome,outcome_counterfactual)
+	softmax(beta,1-df,reward)
 }
 
 agent.average = function(beta,df,reward){
-  df = df %>%
-    select(probability,probability_counterfactual)
-  softmax(beta,df,reward)
+	df = df %>%
+		select(probability,probability_counterfactual)
+	softmax(beta,df,reward)
 }
 
 agent.good = function(beta,df,reward){
-  df = df %>%
-    mutate(
-      outcome_counterfactual = ifelse(outcome == outcome_counterfactual, probability_counterfactual, outcome_counterfactual)) %>%
-    select(outcome,outcome_counterfactual)
-  softmax(beta,df,reward)
+	df = df %>%
+		mutate(
+			outcome_counterfactual = ifelse(outcome == outcome_counterfactual, probability_counterfactual, outcome_counterfactual)) %>%
+		select(outcome,outcome_counterfactual)
+	softmax(beta,df,reward)
 }
 ```
-
 
 ## Fit beta and priors to posteriors
 
@@ -540,64 +538,64 @@ agent.good = function(beta,df,reward){
 ```{r fit_beta_priors}
 
 df.posteriors = rbind(
-  inference.list[["goalie"]] %>% group_by(probability,outcome,agent) %>%summarise(rating = mean(rating)) %>% mutate(experiment = "goalie", pivotality = "pivotal"),
-  inference.list[["spinner"]] %>% group_by(probability,outcome,agent) %>%summarise(rating = mean(rating)) %>% mutate(experiment = "spinner", pivotality = "pivotal"),
-  inference.list[["gardener"]] %>% group_by(probability,pivotality,outcome,agent) %>%summarise(rating = mean(rating)) %>% mutate(experiment = "gardener"),
-  inference.list[["manager"]] %>% group_by(probability,pivotality,outcome,agent) %>%summarise(rating = mean(rating)) %>% mutate(experiment = "manager")
+	inference.list[["goalie"]] %>% group_by(probability,outcome,agent) %>%summarise(rating = mean(rating)) %>% mutate(experiment = "goalie", pivotality = "pivotal"),
+	inference.list[["spinner"]] %>% group_by(probability,outcome,agent) %>%summarise(rating = mean(rating)) %>% mutate(experiment = "spinner", pivotality = "pivotal"),
+	inference.list[["gardener"]] %>% group_by(probability,pivotality,outcome,agent) %>%summarise(rating = mean(rating)) %>% mutate(experiment = "gardener"),
+	inference.list[["manager"]] %>% group_by(probability,pivotality,outcome,agent) %>%summarise(rating = mean(rating)) %>% mutate(experiment = "manager")
 )
 
 df.posteriors = df.posteriors %>%
-  spread(agent,rating) %>%
-  ungroup %>%
-  mutate(probability = ifelse(experiment == "gardener", str_replace_all(probability,"suboptimal","30"),probability),
-         probability = ifelse(experiment == "gardener", str_replace_all(probability,"optimal","70"),probability),
-         probability = ifelse(experiment == "manager", str_replace_all(probability,"suboptimal","25.5"),probability),
-         probability = ifelse(experiment == "manager", str_replace_all(probability,"optimal","45.5"),probability),
-         probability = as.numeric(probability),
-         outcome = str_replace_all(outcome,"wrong","negative"),
-         outcome = str_replace_all(outcome,"correct","positive"),
-         outcome = as.numeric(as.character(factor(outcome,levels=c("negative","positive"),labels = c("0","1")))),
-         outcome_counterfactual = ifelse(pivotality == "pivotal",1-outcome,outcome),
-         probability_counterfactual = ifelse(experiment != "manager", 100-probability, probability),
-         probability_counterfactual = ifelse(probability == 25.5, 45.5, probability_counterfactual),
-         probability_counterfactual = ifelse(probability == 45.5, 25.5, probability_counterfactual),
-         probability = probability/100,
-         probability_counterfactual = probability_counterfactual/100,
-         experiment = factor(experiment,levels = c("goalie", "spinner", "manager", "gardener")))%>%
-  select(experiment,outcome,probability,everything()) %>%
-  arrange(experiment,outcome,probability)
+	spread(agent,rating) %>%
+	ungroup %>%
+	mutate(probability = ifelse(experiment == "gardener", str_replace_all(probability,"suboptimal","30"),probability),
+				 probability = ifelse(experiment == "gardener", str_replace_all(probability,"optimal","70"),probability),
+				 probability = ifelse(experiment == "manager", str_replace_all(probability,"suboptimal","25.5"),probability),
+				 probability = ifelse(experiment == "manager", str_replace_all(probability,"optimal","45.5"),probability),
+				 probability = as.numeric(probability),
+				 outcome = str_replace_all(outcome,"wrong","negative"),
+				 outcome = str_replace_all(outcome,"correct","positive"),
+				 outcome = as.numeric(as.character(factor(outcome,levels=c("negative","positive"),labels = c("0","1")))),
+				 outcome_counterfactual = ifelse(pivotality == "pivotal",1-outcome,outcome),
+				 probability_counterfactual = ifelse(experiment != "manager", 100-probability, probability),
+				 probability_counterfactual = ifelse(probability == 25.5, 45.5, probability_counterfactual),
+				 probability_counterfactual = ifelse(probability == 45.5, 25.5, probability_counterfactual),
+				 probability = probability/100,
+				 probability_counterfactual = probability_counterfactual/100,
+				 experiment = factor(experiment,levels = c("goalie", "spinner", "manager", "gardener")))%>%
+	select(experiment,outcome,probability,everything()) %>%
+	arrange(experiment,outcome,probability)
 
 # fit the parameters
 fit_prior = function(parameters){
-  prior = matrix(c(rep(c(parameters[2],parameters[3],1-(parameters[2]+parameters[3])),8),
-                   rep(c(parameters[4],parameters[5],1-(parameters[4]+parameters[5])),8),
-                   rep(c(parameters[6],parameters[7],1-(parameters[6]+parameters[7])),8),
-                   rep(c(parameters[8],parameters[9],1-(parameters[8]+parameters[9])),8)),ncol=3,byrow=T)
+	prior = matrix(c(rep(c(parameters[2],parameters[3],1-(parameters[2]+parameters[3])),8),
+									 rep(c(parameters[4],parameters[5],1-(parameters[4]+parameters[5])),8),
+									 rep(c(parameters[6],parameters[7],1-(parameters[6]+parameters[7])),8),
+									 rep(c(parameters[8],parameters[9],1-(parameters[8]+parameters[9])),8)),ncol=3,byrow=T)
 
-  likelihood = cbind(
-    agent.bad(parameters[1],df.posteriors,reward),
-    agent.average(parameters[1],df.posteriors,reward),
-    agent.good(parameters[1],df.posteriors,reward)
-  )
-  posterior_fit = prior*likelihood/rowSums(prior*likelihood)
-  posterior_data = select(df.posteriors,contains("agent"))/100
-  return(sum((posterior_data-posterior_fit)^2))
+	likelihood = cbind(
+		agent.bad(parameters[1],df.posteriors,reward),
+		agent.average(parameters[1],df.posteriors,reward),
+		agent.good(parameters[1],df.posteriors,reward)
+	)
+	posterior_fit = prior*likelihood/rowSums(prior*likelihood)
+	posterior_data = select(df.posteriors,contains("agent"))/100
+	return(sum((posterior_data-posterior_fit)^2))
 }
 
 # output the predicted posteriors, based on the fit priors and beta
 predicted_posterior = function(parameters){
-  prior = matrix(c(rep(c(parameters[2],parameters[3],1-(parameters[2]+parameters[3])),8),
-                   rep(c(parameters[4],parameters[5],1-(parameters[4]+parameters[5])),8),
-                   rep(c(parameters[6],parameters[7],1-(parameters[6]+parameters[7])),8),
-                   rep(c(parameters[8],parameters[9],1-(parameters[8]+parameters[9])),8)),ncol=3,byrow=T)
+	prior = matrix(c(rep(c(parameters[2],parameters[3],1-(parameters[2]+parameters[3])),8),
+									 rep(c(parameters[4],parameters[5],1-(parameters[4]+parameters[5])),8),
+									 rep(c(parameters[6],parameters[7],1-(parameters[6]+parameters[7])),8),
+									 rep(c(parameters[8],parameters[9],1-(parameters[8]+parameters[9])),8)),ncol=3,byrow=T)
 
-  likelihood = cbind(
-    agent.bad(parameters[1],df.posteriors,reward),
-    agent.average(parameters[1],df.posteriors,reward),
-    agent.good(parameters[1],df.posteriors,reward)
-  )
-  posterior_fit = prior*likelihood/rowSums(prior*likelihood)
-  return(posterior_fit)
+	likelihood = cbind(
+		agent.bad(parameters[1],df.posteriors,reward),
+		agent.average(parameters[1],df.posteriors,reward),
+		agent.good(parameters[1],df.posteriors,reward)
+	)
+	posterior_fit = prior*likelihood/rowSums(prior*likelihood)
+	return(posterior_fit)
 }
 
 # reward
@@ -605,7 +603,7 @@ reward = 1
 
 # optimize the function
 fit = optim(par = runif(9,0,1),fit_prior,method = "L-BFGS-B",
-                  lower = rep(0, 9), upper = c(5,rep(1,8)))
+									lower = rep(0, 9), upper = c(5,rep(1,8)))
 
 # fitted parameters
 beta = fit$par[1]
@@ -617,23 +615,23 @@ prior.list[["manager"]] = c(fit$par[8],fit$par[9],1-sum(fit$par[8],fit$par[9]))
 
 # add predicted posteriors to dataframe
 tmp = predicted_posterior(fit$par) %>%
-  as.data.frame() %>%
-  setNames(c("p.bad_agent","p.average_agent","p.good_agent"))
+	as.data.frame() %>%
+	setNames(c("p.bad_agent","p.average_agent","p.good_agent"))
 
 df.posteriors = df.posteriors %>%
-  cbind(.,tmp)
+	cbind(.,tmp)
 
 
 # print table with priors for the differnent experiments 
 
 df.table = prior.list %>% 
-  unlist %>% 
-  round(3) %>% 
-  matrix(nrow = 4, byrow=T) %>% 
-  data.frame() %>% 
-  setNames(c("bad agent", "average agent", "good agent")) %>% 
-  mutate(experiment = c("goalie","spinner","gardener","manager")) %>% 
-  select(experiment,everything())
+	unlist %>% 
+	round(3) %>% 
+	matrix(nrow = 4, byrow=T) %>% 
+	data.frame() %>% 
+	setNames(c("bad agent", "average agent", "good agent")) %>% 
+	mutate(experiment = c("goalie","spinner","gardener","manager")) %>% 
+	select(experiment,everything())
 
 knitr::kable(df.table, caption = "Inferred priors")
 
@@ -645,62 +643,65 @@ knitr::kable(df.table, caption = "Inferred priors")
 
 ```{r expected_prior_reward}
 
+#round beta
+beta = beta %>% round(1)
+
 situations = list()
 exp_r_prior = list()
 exp_r_prior_scaled = list()
 
 # SITUATIONS: GOALIE & SPINNER
 situations[["goalie_spinner"]] = expand.grid(probability = seq(0.1,0.9,0.05), outcome = c(0,1)) %>%
-  mutate(probability_counterfactual = 1-probability,
-         outcome_counterfactual = 1-outcome,
-         probability.overall = ifelse(outcome == 1, probability, probability_counterfactual),
-         probability.overall = probability.overall/sum(probability.overall))
+	mutate(probability_counterfactual = 1-probability,
+				 outcome_counterfactual = 1-outcome,
+				 probability.overall = ifelse(outcome == 1, probability, probability_counterfactual),
+				 probability.overall = probability.overall/sum(probability.overall))
 
 # SITUATIONS: GADENER
 situations[["gardener"]] = expand.grid(probability = seq(0.1,0.9,0.05), outcome = c(0,1),
-                                       probability_counterfactual = seq(0.1,0.9,0.05), outcome_counterfactual = c(0,1)) %>%
-  mutate(probability.overall = (1-abs(probability-outcome))*(1-abs(probability_counterfactual-outcome_counterfactual)),
-         probability.overall = probability.overall/sum(probability.overall))
+																			 probability_counterfactual = seq(0.1,0.9,0.05), outcome_counterfactual = c(0,1)) %>%
+	mutate(probability.overall = (1-abs(probability-outcome))*(1-abs(probability_counterfactual-outcome_counterfactual)),
+				 probability.overall = probability.overall/sum(probability.overall))
 
 # SITUATIONS: MANAGER
 situations[["manager"]] = expand.grid(prior1 = seq(0.1,0.9,0.1), outcome1 = c(0,1),
-                                      prior2 = 0.5, outcome2 = c(0,1),
-                                      prior3 = seq(0.1,0.9,0.1), outcome3 = c(0,1)) %>%
-  mutate(probability1 = ifelse(outcome1 == 1, prior1,1-prior1),
-         probability2 = ifelse(outcome2 == 1, prior2,1-prior2),
-         probability3 = ifelse(outcome3 == 1, prior3,1-prior3),
-         probability.overall = probability1*probability2*probability2,
-         probability.overall = probability.overall/sum(probability.overall),
-         outcome = ifelse((outcome3 == 1 & (outcome1 == 1 | outcome2 == 1)),1,0),
-         outcome_counterfactual = ifelse((outcome1 == 1 & (outcome2 == 1 | outcome3 == 1)),1,0)) %>%
-  select(-probability1,-probability2,-probability3) %>%
-  mutate(probability = (1-(1-prior1)*(1-prior2))*prior3,
-         probability_counterfactual =(1-(1-prior3)*(1-prior2))*prior1)
+																			prior2 = 0.5, outcome2 = c(0,1),
+																			prior3 = seq(0.1,0.9,0.1), outcome3 = c(0,1)) %>%
+	mutate(probability1 = ifelse(outcome1 == 1, prior1,1-prior1),
+				 probability2 = ifelse(outcome2 == 1, prior2,1-prior2),
+				 probability3 = ifelse(outcome3 == 1, prior3,1-prior3),
+				 probability.overall = probability1*probability2*probability2,
+				 probability.overall = probability.overall/sum(probability.overall),
+				 outcome = ifelse((outcome3 == 1 & (outcome1 == 1 | outcome2 == 1)),1,0),
+				 outcome_counterfactual = ifelse((outcome1 == 1 & (outcome2 == 1 | outcome3 == 1)),1,0)) %>%
+	select(-probability1,-probability2,-probability3) %>%
+	mutate(probability = (1-(1-prior1)*(1-prior2))*prior3,
+				 probability_counterfactual =(1-(1-prior3)*(1-prior2))*prior1)
 
 situation.names = c("goalie_spinner","gardener","manager")
 
 for(i in 1:length(situation.names)){
-  #expected reward prior
-  situations[[situation.names[i]]]$agent.bad = agent.bad(beta,situations[[situation.names[i]]],reward)
-  situations[[situation.names[i]]]$agent.average = agent.average(beta,situations[[situation.names[i]]],reward)
-  situations[[situation.names[i]]]$agent.good = agent.good(beta,situations[[situation.names[i]]],reward)
+	#expected reward prior
+	situations[[situation.names[i]]]$agent.bad = agent.bad(beta,situations[[situation.names[i]]],reward)
+	situations[[situation.names[i]]]$agent.average = agent.average(beta,situations[[situation.names[i]]],reward)
+	situations[[situation.names[i]]]$agent.good = agent.good(beta,situations[[situation.names[i]]],reward)
 
-  exp_r_prior[[situation.names[i]]] = situations[[situation.names[i]]] %>%
-    summarise(exp_r_prior.bad = sum((agent.bad*outcome + ((1-agent.bad)*outcome_counterfactual))*probability.overall),
-              exp_r_prior.average = sum((agent.average*outcome + ((1-agent.average)*outcome_counterfactual))*probability.overall),
-              exp_r_prior.good = sum((agent.good*outcome + ((1-agent.good)*outcome_counterfactual))*probability.overall))
+	exp_r_prior[[situation.names[i]]] = situations[[situation.names[i]]] %>%
+		summarise(exp_r_prior.bad = sum((agent.bad*outcome + ((1-agent.bad)*outcome_counterfactual))*probability.overall),
+							exp_r_prior.average = sum((agent.average*outcome + ((1-agent.average)*outcome_counterfactual))*probability.overall),
+							exp_r_prior.good = sum((agent.good*outcome + ((1-agent.good)*outcome_counterfactual))*probability.overall))
 
-  #rescale expected prior rewards
-  exp_r_prior_scaled[[situation.names[i]]] = rescale(exp_r_prior[[situation.names[i]]],to=c(0,1),from = range(exp_r_prior[[situation.names[i]]]))
+	#rescale expected prior rewards
+	exp_r_prior_scaled[[situation.names[i]]] = rescale(exp_r_prior[[situation.names[i]]] %>% as.numeric(),to=c(0,1),from = range(exp_r_prior[[situation.names[i]]]))
 }
 
 df.tmp = exp_r_prior_scaled %>%
-  unlist %>%
-  matrix(ncol=3,byrow=T) %>%
-  data.frame() %>%
-  setNames(c("bad agent", "average agent", "good agent")) %>%
-  mutate(experiment = situation.names) %>%
-  select(experiment,everything())
+	unlist %>%
+	matrix(ncol=3,byrow=T) %>%
+	data.frame() %>%
+	setNames(c("bad agent", "average agent", "good agent")) %>%
+	mutate(experiment = situation.names) %>%
+	select(experiment,everything())
 
 knitr::kable(df.tmp, caption = "Scaled expected reward of each agent type")
 ```
@@ -712,8 +713,8 @@ knitr::kable(df.tmp, caption = "Scaled expected reward of each agent type")
 
 ```{r difference_in_expectations}
 
-inference.names = c(rep("goalie_spinner",2),"gardener","manager")
-experiment.names = c("goalie","spinner","gardener","manager")
+inference.names = c(rep("goalie_spinner",2),"manager","gardener")
+experiment.names = c("goalie","spinner","manager","gardener")
 
 exp_r_difference.list = list()
 
@@ -726,9 +727,12 @@ df.tmp = inference.list[[i]] %>%
   mutate(exp_r_prior_sum = sum(prior.list[[names(inference.list[i])]]*exp_r_prior_scaled[[inference.names[i]]]), #prior expected reward
          exp_r_posterior = rowSums(matrix(c(bad_agent,average_agent,good_agent),ncol=3) *
                                      matrix(unlist(rep(exp_r_prior_scaled[[inference.names[i]]],8)),byrow=T,ncol=3)), #posterior expected reward
-         exp_r_difference = exp_r_posterior - exp_r_prior_sum)#expected reward difference
+         exp_r_posterior.model = rowSums(df.posteriors %>% filter(experiment == experiment.names[i]) %>% select(contains("p.")) *
+                                     matrix(unlist(rep(exp_r_prior_scaled[[inference.names[i]]],8)),byrow=T,ncol=3)), #posterior expected reward
+         exp_r_difference = exp_r_posterior - exp_r_prior_sum,#expected reward difference
+         exp_r_difference.model = exp_r_posterior.model - exp_r_prior_sum)
 
-exp_r_difference.list[[names(inference.list[i])]] = select(df.tmp,situation,exp_r_difference)
+exp_r_difference.list[[names(inference.list[i])]] = select(df.tmp,situation,exp_r_difference,exp_r_difference.model)
 }
 rm("inference.names")
 
@@ -743,35 +747,47 @@ knitr::kable(exp_r_difference.list[["goalie"]], caption = "Difference between pr
 
 df.regression.goalie = responsibility.list[["goalie"]] %>%
   group_by(situation,outcome,probability) %>%
-  summarise(rating = mean(rating)) %>%
+  summarise(mean = mean(rating),
+            low = smean.cl.boot(rating)[2],
+            high = smean.cl.boot(rating)[3]
+            ) %>%
   ungroup() %>%
   mutate(pivotality = 1) %>%
-  select(situation,outcome,probability,pivotality,rating)
+  select(situation,outcome,probability,pivotality,mean,low,high)
 
 df.regression.spinner = responsibility.list[["spinner"]] %>%
   group_by(situation,outcome,probability) %>%
-  summarise(rating = mean(rating)) %>%
+  summarise(mean = mean(rating),
+            low = smean.cl.boot(rating)[2],
+            high = smean.cl.boot(rating)[3]
+  ) %>%
   ungroup() %>%
   mutate(pivotality = 1) %>%
-  select(situation,outcome,probability,pivotality,rating)
+  select(situation,outcome,probability,pivotality,mean,low,high)
 
 df.regression.gardener = responsibility.list[["gardener"]] %>%
   group_by(situation,outcome,probability,pivotality) %>%
-  summarise(rating = mean(rating)) %>%
+  summarise(mean = mean(rating),
+            low = smean.cl.boot(rating)[2],
+            high = smean.cl.boot(rating)[3]
+  ) %>%
   ungroup() %>%
-  select(situation,outcome,probability,pivotality,rating)
+  select(situation,outcome,probability,pivotality,mean,low,high)
 
 df.regression.manager = responsibility.list[["manager"]] %>%
   group_by(situation,outcome,probability,pivotality) %>%
-  summarise(rating = mean(rating)) %>%
+  summarise(mean = mean(rating),
+            low = smean.cl.boot(rating)[2],
+            high = smean.cl.boot(rating)[3]
+  ) %>%
   ungroup() %>%
-  select(situation,outcome,probability,pivotality,rating)
+  select(situation,outcome,probability,pivotality,mean,low,high)
 
 df.difference = rbind(exp_r_difference.list[["goalie"]],
-                      exp_r_difference.list[["spinner"]],
-                      exp_r_difference.list[["gardener"]],
-                      exp_r_difference.list[["manager"]]
-                      )
+											exp_r_difference.list[["spinner"]],
+											exp_r_difference.list[["gardener"]],
+											exp_r_difference.list[["manager"]]
+											)
 
 df.regression = rbind(df.regression.goalie,
                       df.regression.spinner,
@@ -784,37 +800,41 @@ df.regression = rbind(df.regression.goalie,
          pivotality = str_replace_all(pivotality,"nonpivotal","0.5"),
          pivotality = str_replace_all(pivotality,"pivotal","1"),
          pivotality = as.numeric(pivotality),
-         rating = ifelse(outcome == 0,-rating,rating),
+         mean = ifelse(outcome == 0,-mean,mean),
          pivotality = ifelse(outcome == 0,-pivotality,pivotality),
          difference = as.vector(df.difference$exp_r_difference),
+         difference.model = as.vector(df.difference$exp_r_difference.model),
          probability = str_replace_all(probability,"suboptimal","30"),
          probability = str_replace_all(probability,"optimal","70"),
          probability = as.numeric(probability)
          ) %>%
   mutate(experiment = rep(c("goalie","spinner","gardener","manager"),each=8)) %>%
-  select(experiment,situation,outcome,difference,pivotality,rating,probability)
+  select(experiment,situation,outcome,difference,difference.model,pivotality,mean,low,high,probability)
 
 # list for regression fits
 fit.regression = list()
 
 # difference and pivotality
-fit.regression[["difference_pivotality"]] = lm(rating~difference+pivotality,data=df.regression)
-df.regression$p.difference_pivotality = fit.regression[["difference_pivotality"]]$fitted.values
+fit.regression[["difference_pivotality"]] = lm(mean~scale(difference)+scale(pivotality),data=df.regression)
+fit.regression[["difference_pivotality"]]$coefficients = fit.regression[["difference_pivotality"]]$coefficients %>% round(0) # round coefficients 
+df.regression$p.difference_pivotality = fit.regression[["difference_pivotality"]]$coefficients[1] +
+	fit.regression[["difference_pivotality"]]$coefficients[2] * scale(df.regression$difference)[,] +
+	fit.regression[["difference_pivotality"]]$coefficients[3] * scale(df.regression$pivotality)[,]
 
 # difference only
-fit.regression[["difference"]] = lm(rating~difference,data=df.regression)
+fit.regression[["difference"]] = lm(mean~difference,data=df.regression)
 df.regression$p.difference = fit.regression[["difference"]]$fitted.values
 
 # pivotality only
-fit.regression[["pivotality"]] = lm(rating~pivotality,data=df.regression)
+fit.regression[["pivotality"]] = lm(mean~pivotality,data=df.regression)
 df.regression$p.pivotality = fit.regression[["pivotality"]]$fitted.values
 
 # optimality model
 df.regression = df.regression %>%
-  mutate(optimal = 1,
-         optimal = ifelse(str_detect(situation,"20|40|suboptimal"),0,optimal))
+	mutate(optimal = 1,
+				 optimal = ifelse(str_detect(situation,"20|40|suboptimal"),0,optimal))
 
-fit.regression[["optimality"]] = lm(rating~optimal*outcome,data=df.regression)
+fit.regression[["optimality"]] = lm(mean~optimal*outcome,data=df.regression)
 df.regression$p.optimality = fit.regression[["optimality"]]$fitted.values
 
 ```
@@ -836,14 +856,14 @@ df.tmp = responsibility.list[["goalie_original"]]
 # df.tmp = responsibility.list[["spinner"]]
 
 df.tmp = df.tmp %>%
-  group_by(id) %>%
-  mutate(context = duplicated(situation))
+	group_by(id) %>%
+	mutate(context = duplicated(situation))
 
 fit = aov_ez(id  = "id",
-       dv = "rating",
-       data = df.tmp,
-       within = c("outcome","probability","context"),
-       anova_table = list(correction = "none", es = "pes")
+			 dv = "rating",
+			 data = df.tmp,
+			 within = c("outcome","probability","context"),
+			 anova_table = list(correction = "none", es = "pes")
 )
 
 print(fit)
@@ -859,19 +879,19 @@ print(fit)
 
 # SPINNER AND GOALIE 
 df.tmp = inference.list[["goalie"]] %>%
-  mutate(experiment = "goalie") %>%
-  rbind(inference.list[["spinner"]] %>% mutate(experiment = "spinner")) %>%
-  group_by(experiment,id,situation) %>%
-  mutate(ranks = rank(rating,ties.method = "average"),
-         mostlikely = which.max(rating),
-         mostlikely = factor(mostlikely,levels = 1:3, labels = c("bad_agent","average_agent","good_agent"))) %>%
-  select(id, experiment, situation, outcome, probability, mostlikely) %>%
-  group_by(experiment,id,situation,mostlikely) %>%
-  filter(row_number()==1) %>%
-  mutate(probability = probability %>% as.numeric*0.01) %>%
-  ungroup %>%
-  mutate(experiment = experiment %>% factor(levels=c("goalie","spinner")) %>% as.numeric %>% -1) %>%
-  mutate(outcome = outcome %>% factor(levels=c("wrong","correct")) %>% as.numeric %>% -1)
+	mutate(experiment = "goalie") %>%
+	rbind(inference.list[["spinner"]] %>% mutate(experiment = "spinner")) %>%
+	group_by(experiment,id,situation) %>%
+	mutate(ranks = rank(rating,ties.method = "average"),
+	       mostlikely = which.max(rating),
+	       mostlikely = factor(mostlikely,levels = 1:3, labels = c("bad_agent","average_agent","good_agent"))) %>%
+	select(id, experiment, situation, outcome, probability, mostlikely) %>%
+	group_by(experiment,id,situation,mostlikely) %>%
+	filter(row_number()==1) %>%
+	mutate(probability = probability %>% as.numeric*0.01) %>%
+	ungroup %>%
+	mutate(experiment = experiment %>% factor(levels=c("goalie","spinner")) %>% as.numeric %>% -1) %>%
+	mutate(outcome = outcome %>% factor(levels=c("wrong","correct")) %>% as.numeric %>% -1)
 
 # Check whether there was an influence of experiment
 ologit = lrm(mostlikely~experiment*probability*outcome, data = df.tmp)
@@ -893,17 +913,17 @@ anova(ologit.red)
 experiment.name = "gardener"
 
 df.tmp = inference.list[[experiment.name]] %>%
-  group_by(id,situation) %>%
-  mutate(ranks = rank(rating,ties.method = "average"),
-         mostlikely = which.max(rating),
-         mostlikely = factor(mostlikely,levels = 1:3, labels = c("bad_agent","average_agent","good_agent"))) %>%
-  select(id, situation, outcome, probability, pivotality, mostlikely) %>%
-  group_by(id,situation,mostlikely) %>%
-  filter(row_number()==1) %>%
-  ungroup %>%
-  mutate(outcome = outcome %>% factor(levels=c("negative","positive")) %>% as.numeric %>% -1) %>%
-  mutate(probability = probability %>% factor(levels=c("suboptimal","optimal")) %>% as.numeric %>% -1) %>%
-  mutate(pivotality = pivotality %>% factor(levels=c("nonpivotal","pivotal")) %>% as.numeric %>% -1)
+	group_by(id,situation) %>%
+	mutate(ranks = rank(rating,ties.method = "average"),
+				 mostlikely = which.max(rating),
+				 mostlikely = factor(mostlikely,levels = 1:3, labels = c("bad_agent","average_agent","good_agent"))) %>%
+	select(id, situation, outcome, probability, pivotality, mostlikely) %>%
+	group_by(id,situation,mostlikely) %>%
+	filter(row_number()==1) %>%
+	ungroup %>%
+	mutate(outcome = outcome %>% factor(levels=c("negative","positive")) %>% as.numeric %>% -1) %>%
+	mutate(probability = probability %>% factor(levels=c("suboptimal","optimal")) %>% as.numeric %>% -1) %>%
+	mutate(pivotality = pivotality %>% factor(levels=c("nonpivotal","pivotal")) %>% as.numeric %>% -1)
 
 # ordinal logistic regression
 ologit = lrm(mostlikely~probability*outcome*pivotality, data = df.tmp)
@@ -938,20 +958,18 @@ anova(ologit)
 
 # Experiment 1
 df.tmp = rbind(responsibility.list[["goalie_original"]] %>% mutate(condition = "goalie"),
-               responsibility.list[["spinner_original"]] %>% mutate(condition = "spinner",
-                                                   id = id + max(responsibility.list[["goalie_original"]][["id"]])))
+							 responsibility.list[["spinner_original"]] %>% mutate(condition = "spinner", id = id + max(responsibility.list[["goalie_original"]][["id"]])))
 # # Experiment 2
 df.tmp = rbind(responsibility.list[["goalie"]] %>% mutate(condition = "goalie"),
-               responsibility.list[["spinner"]] %>% mutate(condition = "spinner",
-                                                           id = id + max(responsibility.list[["goalie"]][["id"]])))
+							 responsibility.list[["spinner"]] %>% mutate(condition = "spinner", id = id + max(responsibility.list[["goalie"]][["id"]])))
 
 aov_ez(id  = "id",
-       dv = "rating",
-       # data = filter(df.tmp,outcome == "wrong"), #blame judgments
-       data = filter(df.tmp,outcome == "correct"), #credit judgments
-       anova_table = list(correction = "none", es = "pes"),
-       within = "probability",
-       between = "condition"
+			 dv = "rating",
+			 # data = filter(df.tmp,outcome == "wrong"), #blame judgments
+			 data = filter(df.tmp,outcome == "correct"), #credit judgments
+			 anova_table = list(correction = "none", es = "pes"),
+			 within = "probability",
+			 between = "condition"
 )
 
 # # Experiment 3a
@@ -964,13 +982,14 @@ df.tmp = responsibility.list[["gadener_noskill"]]
 df.tmp = responsibility.list[["manager"]]
 
 aov_ez(id  = "id",
-       dv = "rating",
-       data = filter(df.tmp,outcome == "negative"), #blame judgments
-       # data = filter(df.tmp,outcome == "positive"), #credit judgments
-       within = c("probability","pivotality")
+			 dv = "rating",
+			 data = filter(df.tmp,outcome == "negative"), #blame judgments
+			 # data = filter(df.tmp,outcome == "positive"), #credit judgments
+			 within = c("probability","pivotality")
 )
 
 ```
+
 
 ## Model comparison
 
@@ -981,25 +1000,25 @@ model.names = c("difference_pivotality","difference","pivotality","optimality")
 
 # Likelihood ratio test for nested models
 lrtest(fit.regression[[model.names[1]]],
-       fit.regression[[model.names[2]]])
+			 fit.regression[[model.names[2]]])
 
 # BIC and AIC scores
 
 column.names = c("Model","r","rmse","BIC","AIC")
 model.metrics = matrix(NA, nrow = length(fit.regression),ncol = length(column.names)) %>%
-  as.data.frame() %>%
-  setNames(column.names) %>%
-  mutate(Model = names(fit.regression))
+	as.data.frame() %>%
+	setNames(column.names) %>%
+	mutate(Model = names(fit.regression))
 
 rmse = function(x1,x2){
-  return(sqrt(mean((x1-x2)^2)))
+	return(sqrt(mean((x1-x2)^2)))
 }
 
 for(i in 1:length(model.names)){
-  model.metrics$BIC[i] = BIC(fit.regression[[model.names[i]]])
-  model.metrics$AIC[i] = AIC(fit.regression[[model.names[i]]])
-  model.metrics$r[i] = cor(abs(df.regression$rating),abs(df.regression[[paste0("p.",model.names[i])]]))
-  model.metrics$rmse[i] = rmse(abs(df.regression$rating),abs(df.regression[[paste0("p.",model.names[i])]]))
+	model.metrics$BIC[i] = BIC(fit.regression[[model.names[i]]])
+	model.metrics$AIC[i] = AIC(fit.regression[[model.names[i]]])
+	model.metrics$r[i] = cor(abs(df.regression$mean),abs(df.regression[[paste0("p.",model.names[i])]]))
+	model.metrics$rmse[i] = rmse(abs(df.regression$mean),abs(df.regression[[paste0("p.",model.names[i])]]))
 }
 
 knitr::kable(model.metrics, caption = "Model comparison")
@@ -1016,78 +1035,84 @@ knitr::kable(model.metrics, caption = "Model comparison")
 ```{r plotting_functions}
 
 # responsiblity judgments without model predictions
-plot.responsibility.no_model = function(x){
-  ggplot(x,aes(x=probability,y=rating,fill=outcome))+
-    stat_summary(fun.y = mean, geom = "bar",color="black") +
-    stat_summary(fun.data = mean_cl_normal, geom = "errorbar",width=0.3)+
-    facet_wrap(~outcome)+
-    scale_y_continuous(breaks = seq(0,100,25), expand = c(0,0))+
-    coord_cartesian(ylim=c(0,100))+
-    ylab("responsibility rating")+
-    scale_fill_manual(values=c("red3","green3"))+
-    theme_bw()+
-    theme(text=element_text(size=20),
-          strip.text=element_text(size=24),
-          axis.title.x = element_blank(),
-          legend.position="none",
-          panel.grid = element_blank(),
-          strip.background = element_blank(),
-          plot.title = element_text(face = "bold", lineheight = unit(2,"cm"))
-    )
+plot.responsibility.no_model = function(x,bottom_space){
+	ggplot(x,aes(x=probability,y=rating,fill=outcome))+
+		stat_summary(fun.y = mean, geom = "bar",color="black") +
+		stat_summary(fun.data = mean_cl_boot, geom = "errorbar",width=0, size = 2)+
+		facet_wrap(~outcome)+
+		scale_y_continuous(breaks = seq(0,100,25), expand = c(0,0))+
+		coord_cartesian(ylim=c(0,100))+
+		labs(x = "situation", y = "responsibility rating")+
+		scale_fill_manual(values=c("red3","green3"))+
+		theme_bw()+
+		theme(legend.position = "none",
+					text = element_text(size=24),
+					strip.text = element_text(size=24),
+					axis.text.x = element_text(size = 20),
+					strip.background = element_blank(),
+					panel.grid.major = element_blank(),
+					panel.grid.minor = element_blank(),
+					# axis.title.x=element_blank(),
+					plot.margin = unit(c(0,0.2,bottom_space,0.2),"cm")
+		)
 }
 
 # responsibility judgments with model predictions
-plot.responsibility.with_model = function(x){
-  ggplot(x,aes(x=probability,y=value,group=index,fill=color_index))+
-    stat_summary(fun.y = mean, geom = "bar",color="black",position = position_dodge(0.9)) +
-    stat_summary(fun.data = mean_cl_normal, geom = "errorbar",position = position_dodge(0.9),width=0.3)+
-    facet_wrap(~outcome)+
-    scale_y_continuous(breaks = seq(0,100,25), expand = c(0,0))+
-    coord_cartesian(ylim=c(0,100))+
-    ylab('responsibility rating')+
-    scale_fill_manual(values=c("red3","green3","black"))+
-    theme_bw()+
-    theme(legend.position = "none",
-          text=element_text(size=20),
-          strip.text=element_text(size=24),
-          strip.background = element_blank(),
-          panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          axis.title.x=element_blank(),
-          plot.margin = unit(c(0,0,0.2,0),"cm"),
-          plot.title = element_text(face = "bold", lineheight = unit(2,"cm"))
-    )
+plot.responsibility.with_model = function(x,bottom_space){
+	ggplot(x,aes(x=probability,y=value,group=index,fill=color_index))+
+		stat_summary(fun.y = mean, geom = "bar",color="black",position = position_dodge(0.9)) +
+		stat_summary(fun.data = mean_cl_boot, geom = "errorbar",position = position_dodge(0.9),width=0, size = 2)+
+		facet_wrap(~outcome)+
+		scale_y_continuous(breaks = seq(0,100,25), expand = c(0,0))+
+		coord_cartesian(ylim=c(0,100))+
+		labs(x = "situation", y = "responsibility rating")+
+		scale_fill_manual(values=c("red3","green3","black"))+
+		theme_bw()+
+		theme(legend.position = "none",
+					text = element_text(size=24),
+					strip.text = element_text(size=24),
+					axis.text.x = element_text(size = 20),
+					strip.background = element_blank(),
+					panel.grid.major = element_blank(),
+					panel.grid.minor = element_blank(),
+					# axis.title.x=element_blank(),
+					plot.margin = unit(c(0,0.2,bottom_space,0.2),"cm")
+		)
 }
 
-plot.inferences = function(x, experiment.name){
-  if (experiment.name %in% c("spinner","goalie")){
-    agentlabels = c("unskilled  ","average  ","skilled  ")
-  }else{
-    agentlabels = c("bad  ","average  ","skilled  ")
-  }
+plot.inferences = function(x,experiment.name, title.name){
+	if (experiment.name %in% c("spinner","goalie")){
+		agentlabels = c("unskilled  ","average  ","skilled  ")
+	}else{
+		agentlabels = c("bad  ","average  ","skilled  ")
+	}
 
-  ggplot(x,aes(x=probability,y=rating,group=agent,fill=agent))+
-    stat_summary(fun.y = mean, geom = "bar",color="black",position=position_fill(),width=0.75) +
-    facet_wrap(~outcome,ncol=1)+
-    labs(y = "agent inference", fill = "type of agent:  ", x = "action")+
-    scale_fill_manual(values = c("peru", rgb(0.7,0.7,0.7), "gold"),labels = agentlabels)+
-    scale_alpha_manual(values = c(1,0.5),guide='none')+
-    scale_y_continuous(breaks = seq(0,1,0.25), labels = paste0(seq(0,100,25),"%"))+
-    theme_bw()+
-    theme(
-      axis.title.x=element_blank(),
-      legend.position="bottom",
-      legend.margin = unit(0.3,"cm"),
-      text = element_text(size=20),
-      strip.text = element_text(size=24),
-      panel.margin.y=unit(2,"mm"),
-      axis.ticks.x = element_blank(),
-      legend.key = element_rect(color="black"),
-      panel.grid.minor = element_blank(),
-      panel.grid.major = element_blank(),
-      strip.background = element_blank(),
-      plot.title = element_text(face = "bold", lineheight = unit(2,"cm"))
-    )
+	ggplot(x,aes(x=probability,y=rating,group=rev(agent),fill=rev(agent)))+
+		stat_summary(fun.y = mean, geom = "bar",color="black",position=position_fill(),width=0.75) +
+		facet_wrap(~outcome,ncol=2)+
+		labs(y = "agent inference", fill = "type of agent:  ", x = "situation")+
+		scale_fill_manual(values = rev(c("peru", rgb(0.7,0.7,0.7), "gold")),labels = rev(agentlabels))+
+		scale_alpha_manual(values = c(1,0.5),guide='none')+
+		scale_y_continuous(breaks = seq(0,1,0.25), labels = paste0(seq(0,100,25),"%"))+
+		coord_cartesian(xlim = c(0.5, 4.5), ylim = c(0,1.01), expand=F)+
+		theme_bw()+
+		theme(
+			axis.title.x=element_text(margin = margin(t = 15,unit="pt")),
+			legend.position="bottom",
+			# legend.margin = unit(0.3,"cm"),
+			text = element_text(size=24),
+			strip.text = element_text(size=24),
+			axis.text.x = element_text(size = 20),
+			# panel.margin.y=unit(2,"mm"),
+			axis.ticks.x = element_blank(),
+			legend.key = element_rect(color="black"),
+			panel.grid.minor = element_blank(),
+			panel.grid.major = element_blank(),
+			strip.background = element_blank()
+			# plot.title = element_text(face = "bold", lineheight = unit(3,"cm"),
+			#                           hjust = 0.5, margin = margin(b=10,unit = "pt"))
+		)+
+		guides(fill = guide_legend(reverse = T, title.vjust = 1.5))
 }
 
 ```
@@ -1107,18 +1132,16 @@ for (i in experiment.names){
 df.plot = inference.list[[i]]
 
 if(i %in% c("goalie","spinner")){
-  df.plot = df.plot %>%
-    mutate(probability = paste0(probability,'%'),
-           outcome = factor(outcome,levels = c("wrong", "correct"), labels = c("negative outcome",
-                                                                               "positive outcome")))
+	df.plot = df.plot %>%
+		mutate(probability = paste0(probability,'%'),
+					 outcome = factor(outcome,levels = c("wrong", "correct"), labels = c("negative outcome", "positive outcome")))
 }else{
-  df.plot = df.plot %>%
-    mutate(probability = paste0(probability,pivotality),
-           probability = str_replace_all(probability,"suboptimal", "30%\n"),
-           probability = str_replace_all(probability,"optimal", "70%\n"),
-           probability = str_replace_all(probability,"nonpivotal", "not pivotal"),
-           outcome = factor(outcome,levels = c("negative", "positive"), labels = c("negative outcome",
-                                                                                   "positive outcome")))
+	df.plot = df.plot %>%
+		mutate(probability = paste0(probability,pivotality),
+					 probability = str_replace_all(probability,"suboptimal", "30%\n"),
+					 probability = str_replace_all(probability,"optimal", "70%\n"),
+					 probability = str_replace_all(probability,"nonpivotal", "not pivotal"),
+					 outcome = factor(outcome,levels = c("negative", "positive"), labels = c("negative outcome", "positive outcome")))
 }
 
 # plot results
@@ -1139,26 +1162,22 @@ for (i in experiment.names){
 df.plot = inference.list[[i]]
 
 df.plot = df.posteriors %>%
-  filter(experiment == i) %>%
-  gather(agent, rating, c(p.bad_agent,p.average_agent,p.good_agent))
+	filter(experiment == i) %>%
+	gather(agent, rating, c(p.bad_agent,p.average_agent,p.good_agent))
 
 if(i %in% c("goalie","spinner")){
-  df.plot = df.plot %>%
-    mutate(probability = paste0(100*probability,'%'),
-           outcome = factor(outcome,levels = c(0, 1), labels = c("negative outcome",
-                                                                 "positive outcome")),
-           agent = factor(agent,levels = paste0("p.",c("bad","average","good"),"_agent")))
+	df.plot = df.plot %>%
+		mutate(probability = paste0(100*probability,'%'),
+					 outcome = factor(outcome,levels = c(0, 1), labels = c("negative outcome", "positive outcome")),
+					 agent = factor(agent,levels = paste0("p.",c("bad","average","good"),"_agent")))
 }else{
-  df.plot = df.plot %>%
-    mutate(probability = paste0(probability*100,"%"),
-           probability = ifelse(probability == "25.5%", "30%", probability),
-           probability = ifelse(probability == "45.5%", "70%", probability),
-           pivotality = str_replace_all(pivotality,"nonpivotal", "not pivotal"),
-           probability = paste0(probability,"\n",pivotality),
-           outcome = factor(outcome,levels = c(0,1), labels = c("negative outcome",
-                                                                "positive outcome")),
-           agent = factor(agent,levels = paste0("p.",c("bad","average","good"),"_agent")))
-}
+	df.plot = df.plot %>%
+		mutate(probability = paste0(probability*100,"%"),
+					 probability = ifelse(probability == "25.5%", "30%", probability),
+					 probability = ifelse(probability == "45.5%", "70%", probability),
+					 pivotality = str_replace_all(pivotality,"nonpivotal", "not pivotal"),
+					 probability = paste0(probability,"\n",pivotality),
+					 outcome = factor(outcome,levels = c(0,1), labels = c("negative outcome", "positive outcome")), agent = factor(agent,levels = paste0("p.",c("bad","average","good"),"_agent"))) }
 
 # plot results
 p = plot.inferences(df.plot,i) + ggtitle(paste("Experiment:", i))
@@ -1181,11 +1200,8 @@ experiment.name = "goalie_original"
 
 df.plot = responsibility.list[[experiment.name]]
 df.plot = df.plot %>%
-  mutate(probability = paste0(probability,'%'),
-         outcome = factor(outcome,levels = c("wrong", "correct"), labels = c("negative outcome",
-                                                                               "positive outcome")))
-
-plot.responsibility.no_model(df.plot) + ggtitle(paste0("Experiment: ", experiment.name))
+	mutate(probability = paste0(probability,'%'), outcome = factor(outcome,levels = c("wrong", "correct"), labels = c("negative outcome", "positive outcome")))
+plot.responsibility.no_model(df.plot,0.2)
 
 ```
 
@@ -1199,20 +1215,14 @@ plot.responsibility.no_model(df.plot) + ggtitle(paste0("Experiment: ", experimen
 plot.list = list()
 
 for(i in experiment.names[1:2]){
-  for(j in 1:2){
-    
-df.plot = responsibility.list[[i]]
+	for(j in 1:2){
+		
+	df.plot = responsibility.list[[i]]
 
-df.plot = df.plot %>%
-  mutate(probability = paste0(probability,'%'),
-         outcome = factor(outcome,levels = c("wrong", "correct"), labels = c("negative outcome",
-                                                                             "positive outcome"))) %>%
-  merge(.,cluster.list[[i]]) %>%
-  filter(cluster == j)
-  
-  p = plot.responsibility.no_model(df.plot) + ggtitle(paste0("Experiment: ", i, ", Cluster: ", j))
-  print(p)
-  }
+	df.plot = df.plot %>% mutate(probability = paste0(probability,'%'), outcome = factor(outcome,levels = c("wrong", "correct"), labels = c("negative outcome", "positive outcome"))) %>% merge(.,cluster.list[[i]]) %>% filter(cluster == j)
+	plot.responsibility.no_model(df.plot,2)
+	print(p)
+	}
 }
 
 ```
@@ -1234,44 +1244,50 @@ model.name = "difference_pivotality"
 # model.name = "difference"
 
 df.prediction = df.regression %>%
-  filter(experiment == experiment.name)
+	filter(experiment == experiment.name)
 
 if (experiment.name %in% c("goalie","spinner")){
-  df.plot = responsibility.list[[experiment.name]] %>%
-    select(id,situation,outcome,probability,rating) %>%
-    merge(.,select(df.prediction,situation,p.difference,p.pivotality,p.difference_pivotality)) %>%
-    mutate_each(funs(abs),p.difference,p.pivotality,p.difference_pivotality) %>%
-    mutate(probability = paste0(probability,"%"),
-           outcome = str_replace_all(outcome,"wrong","negative outcome"),
-           outcome = str_replace_all(outcome,"correct","positive outcome")
-    )
+	df.plot = responsibility.list[[experiment.name]] %>%
+		select(id,situation,outcome,probability,rating) %>%
+		merge(.,select(df.prediction,situation,p.difference,p.pivotality,p.difference_pivotality)) %>%
+		mutate_each(funs(abs),p.difference,p.pivotality,p.difference_pivotality) %>%
+		mutate(probability = paste0(probability,"%"),
+					 outcome = str_replace_all(outcome,"wrong","negative outcome"),
+					 outcome = str_replace_all(outcome,"correct","positive outcome")
+		)
 }else{
-  df.plot = responsibility.list[[experiment.name]] %>%
-    select(id,situation,outcome,probability,pivotality,rating) %>%
-    rename(pivotality.index = pivotality) %>%
-    merge(.,select(df.prediction,situation,p.difference,p.pivotality,p.difference_pivotality)) %>%
-    mutate_each(funs(abs),p.difference,p.pivotality,p.difference_pivotality) %>%
-    mutate(pivotality.index = str_replace_all(pivotality.index,"nonpivotal","not\npivotal"),
-           probability = str_replace_all(probability,"suboptimal","30%\n"),
-           probability = str_replace_all(probability,"optimal","70%\n"),
-           probability = paste0(probability,pivotality.index),
-           outcome = str_replace_all(outcome,"negative","negative outcome"),
-           outcome = str_replace_all(outcome,"positive","positive outcome")
-    )
+	df.plot = responsibility.list[[experiment.name]] %>%
+		select(id,situation,outcome,probability,pivotality,rating) %>%
+		rename(pivotality.index = pivotality) %>%
+		merge(.,select(df.prediction,situation,p.difference,p.pivotality,p.difference_pivotality)) %>%
+		mutate_each(funs(abs),p.difference,p.pivotality,p.difference_pivotality) %>%
+		mutate(pivotality.index = str_replace_all(pivotality.index,"nonpivotal","not\npivotal"),
+					 probability = str_replace_all(probability,"suboptimal","30%\n"),
+					 probability = str_replace_all(probability,"optimal","70%\n"),
+					 probability = paste0(probability,pivotality.index),
+					 outcome = str_replace_all(outcome,"negative","negative outcome"),
+					 outcome = str_replace_all(outcome,"positive","positive outcome")
+		)
 }
 
 df.plot = df.plot %>%
-  select_("id","outcome","probability",paste0("p.",model.name),"rating") %>%
-  gather_("index","value",c("rating",paste0("p.",model.name))) %>%
-  mutate(color_index = 1,
-         color_index = ifelse(outcome == "negative outcome",0,color_index),
-         color_index = ifelse(index == paste0("p.",model.name),2,color_index),
-         color_index = as.factor(color_index),
-         index = factor(index,levels = c("rating",model.name),labels = c("rating",model.name))) %>%
-  arrange(index,id,outcome,probability)
+	select_("id","outcome","probability",paste0("p.",model.name),"rating") %>%
+	gather_("index","value",c("rating",paste0("p.",model.name))) %>%
+	mutate(color_index = 1,
+				 color_index = ifelse(outcome == "negative outcome",0,color_index),
+				 color_index = ifelse(index == paste0("p.",model.name),2,color_index),
+				 color_index = as.factor(color_index),
+				 index = factor(index,levels = c("rating",model.name),labels = c("rating",model.name))) %>%
+	arrange(index,id,outcome,probability)
+
+if (experiment.name %in% c("goalie","spinner")){
+  bottom_space = 0.2
+}else{
+  bottom_space = 2
+}
 
 # plot results
-plot.responsibility.with_model(df.plot) + ggtitle(paste0("Experiment: ", experiment.name, ", Model: ", model.name))
+plot.responsibility.with_model(df.plot,bottom_space)
 
 ```
 
@@ -1288,30 +1304,39 @@ model.name = "difference_pivotality"
 # model.name = "optimality"
 
 df.plot = df.regression %>%
-  mutate_each(funs(abs),p.difference,p.pivotality,p.difference_pivotality,p.optimality,rating) %>%
+  mutate_at(vars(p.difference,p.pivotality,p.difference_pivotality,p.optimality,mean),funs(abs)) %>%
   mutate(experiment = factor(experiment,levels = c("goalie","spinner","manager","gardener")),
-         outcome = factor(outcome,levels = c(0,1), labels = c("negative outcome", "positive outcome")))
+         outcome = factor(outcome,levels = c(0,1), labels = c("negative", "positive")))
 
-ggplot(df.plot,aes_string(x=paste0("p.",model.name),y="rating",color="experiment"))+
+ggplot(df.plot,aes_string(x=paste0("p.",model.name),y="mean",color="experiment"))+
+  # geom_smooth(aes(group=1), method="lm",color="black",se=F)+
+  geom_abline(intercept = 0,slope = 1, linetype = 2)+
   geom_smooth(aes(group=1), method="lm",color="black")+
+  geom_errorbar(aes(ymin=low,ymax=high),alpha = 1,width=0,size=1)+
   geom_point(aes(shape=outcome),size=4)+
+  annotate(x = 10, y = 95, geom = 'text', label = paste("R^2 == ", cor(df.plot$mean,df.plot[[paste0("p.",model.name)]])^2 %>% round(2)), size = 8, parse = T)+
   theme_bw()+
   labs(y = "responsibility rating", x="model prediction")+
-  scale_x_continuous(breaks = seq(0,100,10))+
-  scale_y_continuous(breaks = seq(0,100,10))+
+  scale_x_continuous(breaks = seq(0,100,25))+
+  scale_y_continuous(breaks = seq(0,100,25))+
   coord_cartesian(xlim=c(0,100),ylim=c(0,100))+
-  theme(text = element_text(size=20),
+  theme(text = element_text(size=26),
         legend.position=c(1,0),
-        legend.justification=c(1,0),
+        legend.justification=c(1.01,-0.01),
+        legend.text = element_text(size=20),
+        legend.title = element_text(size=22),
+        legend.background = element_blank(),
+        legend.key = element_blank(),
         panel.grid = element_blank(),
-        axis.title.x = element_text(margin = margin(0.5,0,0,0,"cm")),
-        axis.title.y = element_text(margin = margin(0,0.5,0,0,"cm"))
+        panel.border = element_blank(),
+        axis.line = element_line(colour = "black", size = 1),
+        axis.title.x = element_text(margin = margin(0.2,0,0,0,"cm")),
+        axis.title.y = element_text(margin = margin(0,0.1,0,0,"cm"))
   )+
   guides(color = guide_legend(order = 1),
          shapes = guide_legend(order = 2))
 
 ```
-
 
 # Cross validation 
 
@@ -1323,92 +1348,92 @@ ggplot(df.plot,aes_string(x=paste0("p.",model.name),y="rating",color="experiment
 ```{r, eval = F}
 
 df.cv = rbind(
-  inference.list[["goalie"]] %>% group_by(probability,outcome,agent) %>%summarise(rating = mean(rating)) %>% mutate(experiment = "goalie", pivotality = "pivotal"),
-  inference.list[["spinner"]] %>% group_by(probability,outcome,agent) %>%summarise(rating = mean(rating)) %>% mutate(experiment = "spinner", pivotality = "pivotal"),
-  inference.list[["gardener"]] %>% group_by(probability,pivotality,outcome,agent) %>%summarise(rating = mean(rating)) %>% mutate(experiment = "gardener"),
-  inference.list[["manager"]] %>% group_by(probability,pivotality,outcome,agent) %>%summarise(rating = mean(rating)) %>% mutate(experiment = "manager")
+	inference.list[["goalie"]] %>% group_by(probability,outcome,agent) %>%summarise(rating = mean(rating)) %>% mutate(experiment = "goalie", pivotality = "pivotal"),
+	inference.list[["spinner"]] %>% group_by(probability,outcome,agent) %>%summarise(rating = mean(rating)) %>% mutate(experiment = "spinner", pivotality = "pivotal"),
+	inference.list[["gardener"]] %>% group_by(probability,pivotality,outcome,agent) %>%summarise(rating = mean(rating)) %>% mutate(experiment = "gardener"),
+	inference.list[["manager"]] %>% group_by(probability,pivotality,outcome,agent) %>%summarise(rating = mean(rating)) %>% mutate(experiment = "manager")
 )
 
 df.cv = df.cv %>%
-  spread(agent,rating) %>%
-  ungroup %>%
-  mutate(probability = ifelse(experiment == "gardener", str_replace_all(probability,"suboptimal","30"),probability),
-         probability = ifelse(experiment == "gardener", str_replace_all(probability,"optimal","70"),probability),
-         probability = ifelse(experiment == "manager", str_replace_all(probability,"suboptimal","25.5"),probability),
-         probability = ifelse(experiment == "manager", str_replace_all(probability,"optimal","45.5"),probability),
-         outcome = str_replace_all(outcome,"wrong","negative"),
-         outcome = str_replace_all(outcome,"correct","positive"),
-         outcome = as.numeric(as.character(factor(outcome,levels=c("negative","positive"),labels = c("0","1")))),
-         probability = as.numeric(probability),
-         pivotality = str_replace_all(pivotality,"nonpivotal","0.5"),
-         pivotality = str_replace_all(pivotality,"pivotal","1"),
-         pivotality = as.numeric(pivotality),
-         pivotality = ifelse(outcome == 0,-pivotality,pivotality),
-         outcome_counterfactual = ifelse(pivotality == "pivotal",1-outcome,outcome),
-         probability_counterfactual = ifelse(experiment != "manager", 100-probability, probability),
-         probability_counterfactual = ifelse(probability == 25.5, 45.5, probability_counterfactual),
-         probability_counterfactual = ifelse(probability == 45.5, 25.5, probability_counterfactual),
-         probability_counterfactual = probability_counterfactual/100,
-         probability = probability/100,
-         experiment = factor(experiment,levels = c("goalie", "spinner", "manager", "gardener")))%>%
-  select(experiment,outcome,probability,everything()) %>%
-  arrange(experiment,outcome,probability)
+	spread(agent,rating) %>%
+	ungroup %>%
+	mutate(probability = ifelse(experiment == "gardener", str_replace_all(probability,"suboptimal","30"),probability),
+				 probability = ifelse(experiment == "gardener", str_replace_all(probability,"optimal","70"),probability),
+				 probability = ifelse(experiment == "manager", str_replace_all(probability,"suboptimal","25.5"),probability),
+				 probability = ifelse(experiment == "manager", str_replace_all(probability,"optimal","45.5"),probability),
+				 outcome = str_replace_all(outcome,"wrong","negative"),
+				 outcome = str_replace_all(outcome,"correct","positive"),
+				 outcome = as.numeric(as.character(factor(outcome,levels=c("negative","positive"),labels = c("0","1")))),
+				 probability = as.numeric(probability),
+				 pivotality = str_replace_all(pivotality,"nonpivotal","0.5"),
+				 pivotality = str_replace_all(pivotality,"pivotal","1"),
+				 pivotality = as.numeric(pivotality),
+				 pivotality = ifelse(outcome == 0,-pivotality,pivotality),
+				 outcome_counterfactual = ifelse(pivotality == "pivotal",1-outcome,outcome),
+				 probability_counterfactual = ifelse(experiment != "manager", 100-probability, probability),
+				 probability_counterfactual = ifelse(probability == 25.5, 45.5, probability_counterfactual),
+				 probability_counterfactual = ifelse(probability == 45.5, 25.5, probability_counterfactual),
+				 probability_counterfactual = probability_counterfactual/100,
+				 probability = probability/100,
+				 experiment = factor(experiment,levels = c("goalie", "spinner", "manager", "gardener")))%>%
+	select(experiment,outcome,probability,everything()) %>%
+	arrange(experiment,outcome,probability)
 
 df.regression.goalie = responsibility.list[["goalie"]] %>%
-  group_by(situation,outcome,probability) %>%
-  summarise(rating = mean(rating)) %>%
-  ungroup() %>%
-  mutate(pivotality = 1) %>%
-  select(situation,outcome,probability,pivotality,rating)
+	group_by(situation,outcome,probability) %>%
+	summarise(rating = mean(rating)) %>%
+	ungroup() %>%
+	mutate(pivotality = 1) %>%
+	select(situation,outcome,probability,pivotality,rating)
 
 df.regression.spinner = responsibility.list[["spinner"]] %>%
-  group_by(situation,outcome,probability) %>%
-  summarise(rating = mean(rating)) %>%
-  ungroup() %>%
-  mutate(pivotality = 1) %>%
-  select(situation,outcome,probability,pivotality,rating)
+	group_by(situation,outcome,probability) %>%
+	summarise(rating = mean(rating)) %>%
+	ungroup() %>%
+	mutate(pivotality = 1) %>%
+	select(situation,outcome,probability,pivotality,rating)
 
 df.regression.gardener = responsibility.list[["gardener"]] %>%
-  group_by(situation,outcome,probability,pivotality) %>%
-  summarise(rating = mean(rating)) %>%
-  ungroup() %>%
-  select(situation,outcome,probability,pivotality,rating)
+	group_by(situation,outcome,probability,pivotality) %>%
+	summarise(rating = mean(rating)) %>%
+	ungroup() %>%
+	select(situation,outcome,probability,pivotality,rating)
 
 df.regression.manager = responsibility.list[["manager"]] %>%
-  group_by(situation,outcome,probability,pivotality) %>%
-  summarise(rating = mean(rating)) %>%
-  ungroup() %>%
-  select(situation,outcome,probability,pivotality,rating)
+	group_by(situation,outcome,probability,pivotality) %>%
+	summarise(rating = mean(rating)) %>%
+	ungroup() %>%
+	select(situation,outcome,probability,pivotality,rating)
 
 df.cv2 = rbind(df.regression.goalie,
-               df.regression.spinner,
-               df.regression.gardener,
-               df.regression.manager
-                      ) %>%
-  mutate(experiment = rep(c("goalie","spinner","gardener","manager"),each=8),
-         probability = ifelse(experiment == "gardener", str_replace_all(probability,"suboptimal","30"),probability),
-         probability = ifelse(experiment == "gardener", str_replace_all(probability,"optimal","70"),probability),
-         probability = ifelse(experiment == "manager", str_replace_all(probability,"suboptimal","25.5"),probability),
-         probability = ifelse(experiment == "manager", str_replace_all(probability,"optimal","45.5"),probability),
-         probability = as.numeric(probability),
-         probability = probability/100,
-         outcome = str_replace_all(outcome,"wrong|negative","0"),
-         outcome = str_replace_all(outcome,"correct|positive","1"),
-         outcome = as.numeric(outcome),
-         pivotality = str_replace_all(pivotality,"nonpivotal","0.5"),
-         pivotality = str_replace_all(pivotality,"pivotal","1"),
-         pivotality = as.numeric(pivotality),
-         rating = ifelse(outcome == 0,-rating,rating),
-         pivotality = ifelse(outcome == 0,-pivotality,pivotality),
-         experiment = factor(experiment,levels = c("goalie", "spinner", "manager", "gardener"))
-  ) %>%
-  select(experiment,outcome,pivotality,probability,rating)
+							 df.regression.spinner,
+							 df.regression.gardener,
+							 df.regression.manager
+											) %>%
+	mutate(experiment = rep(c("goalie","spinner","gardener","manager"),each=8),
+				 probability = ifelse(experiment == "gardener", str_replace_all(probability,"suboptimal","30"),probability),
+				 probability = ifelse(experiment == "gardener", str_replace_all(probability,"optimal","70"),probability),
+				 probability = ifelse(experiment == "manager", str_replace_all(probability,"suboptimal","25.5"),probability),
+				 probability = ifelse(experiment == "manager", str_replace_all(probability,"optimal","45.5"),probability),
+				 probability = as.numeric(probability),
+				 probability = probability/100,
+				 outcome = str_replace_all(outcome,"wrong|negative","0"),
+				 outcome = str_replace_all(outcome,"correct|positive","1"),
+				 outcome = as.numeric(outcome),
+				 pivotality = str_replace_all(pivotality,"nonpivotal","0.5"),
+				 pivotality = str_replace_all(pivotality,"pivotal","1"),
+				 pivotality = as.numeric(pivotality),
+				 rating = ifelse(outcome == 0,-rating,rating),
+				 pivotality = ifelse(outcome == 0,-pivotality,pivotality),
+				 experiment = factor(experiment,levels = c("goalie", "spinner", "manager", "gardener"))
+	) %>%
+	select(experiment,outcome,pivotality,probability,rating)
 
 df.cv = df.cv %>%
-  merge(.,df.cv2) %>%
-  mutate(situation.index = rep(1:8,4),
-         optimality = ifelse(probability > 0.4, 1, 0)) %>%
-  arrange(experiment)
+	merge(.,df.cv2) %>%
+	mutate(situation.index = rep(1:8,4),
+				 optimality = ifelse(probability > 0.4, 1, 0)) %>%
+	arrange(experiment)
 
 rm(list = setdiff(ls(),c("df.cv","df.data","inference.list", "responsibility.list")))
 ```
@@ -1418,146 +1443,146 @@ rm(list = setdiff(ls(),c("df.cv","df.data","inference.list", "responsibility.lis
 ```{r, eval = F}
 # softmax decision function
 softmax = function(beta,theta,reward){
-  exp(beta*theta[,1]*reward)/rowSums(exp(beta*theta*reward))
+	exp(beta*theta[,1]*reward)/rowSums(exp(beta*theta*reward))
 }
 
 # agent decision functions
 agent.bad = function(beta,df,reward){
-  df = df %>%
-    mutate(
-      outcome_counterfactual = ifelse(outcome == outcome_counterfactual, probability_counterfactual, outcome_counterfactual)) %>%
-    select(outcome,outcome_counterfactual)
-  softmax(beta,1-df,reward)
+	df = df %>%
+		mutate(
+			outcome_counterfactual = ifelse(outcome == outcome_counterfactual, probability_counterfactual, outcome_counterfactual)) %>%
+		select(outcome,outcome_counterfactual)
+	softmax(beta,1-df,reward)
 }
 
 agent.average = function(beta,df,reward){
-  df = df %>%
-    select(probability,probability_counterfactual)
-  softmax(beta,df,reward)
+	df = df %>%
+		select(probability,probability_counterfactual)
+	softmax(beta,df,reward)
 }
 
 agent.good = function(beta,df,reward){
-  df = df %>%
-    mutate(
-      outcome_counterfactual = ifelse(outcome == outcome_counterfactual, probability_counterfactual, outcome_counterfactual)) %>%
-    select(outcome,outcome_counterfactual)
-  softmax(beta,df,reward)
+	df = df %>%
+		mutate(
+			outcome_counterfactual = ifelse(outcome == outcome_counterfactual, probability_counterfactual, outcome_counterfactual)) %>%
+		select(outcome,outcome_counterfactual)
+	softmax(beta,df,reward)
 }
 
 fit_prior_cv = function(parameters){
-  ngoalie = sum(df.tmp$experiment == "goalie")
-  nspinner = sum(df.tmp$experiment == "spinner")
-  ngardener = sum(df.tmp$experiment == "gardener")
-  nmanager = sum(df.tmp$experiment == "manager")
+	ngoalie = sum(df.tmp$experiment == "goalie")
+	nspinner = sum(df.tmp$experiment == "spinner")
+	ngardener = sum(df.tmp$experiment == "gardener")
+	nmanager = sum(df.tmp$experiment == "manager")
 
-  prior = matrix(c(rep(c(parameters[2],parameters[3],1-(parameters[2]+parameters[3])),ngoalie),
-                   rep(c(parameters[4],parameters[5],1-(parameters[4]+parameters[5])),nspinner),
-                   rep(c(parameters[6],parameters[7],1-(parameters[6]+parameters[7])),ngardener),
-                   rep(c(parameters[8],parameters[9],1-(parameters[8]+parameters[9])),nmanager)),ncol=3,byrow=T)
+	prior = matrix(c(rep(c(parameters[2],parameters[3],1-(parameters[2]+parameters[3])),ngoalie),
+									 rep(c(parameters[4],parameters[5],1-(parameters[4]+parameters[5])),nspinner),
+									 rep(c(parameters[6],parameters[7],1-(parameters[6]+parameters[7])),ngardener),
+									 rep(c(parameters[8],parameters[9],1-(parameters[8]+parameters[9])),nmanager)),ncol=3,byrow=T)
 
-  likelihood = cbind(
-    agent.bad(parameters[1],df.tmp,reward),
-    agent.average(parameters[1],df.tmp,reward),
-    agent.good(parameters[1],df.tmp,reward)
-  )
-  posterior_fit = prior*likelihood/rowSums(prior*likelihood)
-  posterior_data = select(df.tmp,contains("agent"))/100
-  return(sum((posterior_data-posterior_fit)^2))
+	likelihood = cbind(
+		agent.bad(parameters[1],df.tmp,reward),
+		agent.average(parameters[1],df.tmp,reward),
+		agent.good(parameters[1],df.tmp,reward)
+	)
+	posterior_fit = prior*likelihood/rowSums(prior*likelihood)
+	posterior_data = select(df.tmp,contains("agent"))/100
+	return(sum((posterior_data-posterior_fit)^2))
 }
 
 # output the predicted posteriors, based on the fit priors and beta
 predicted_posterior = function(parameters){
-  ngoalie = sum(df.tmp$experiment == "goalie")
-  nspinner = sum(df.tmp$experiment == "spinner")
-  ngardener = sum(df.tmp$experiment == "gardener")
-  nmanager = sum(df.tmp$experiment == "manager")
+	ngoalie = sum(df.tmp$experiment == "goalie")
+	nspinner = sum(df.tmp$experiment == "spinner")
+	ngardener = sum(df.tmp$experiment == "gardener")
+	nmanager = sum(df.tmp$experiment == "manager")
 
-  prior = matrix(c(rep(c(parameters[2],parameters[3],1-(parameters[2]+parameters[3])),ngoalie),
-                   rep(c(parameters[4],parameters[5],1-(parameters[4]+parameters[5])),nspinner),
-                   rep(c(parameters[6],parameters[7],1-(parameters[6]+parameters[7])),ngardener),
-                   rep(c(parameters[8],parameters[9],1-(parameters[8]+parameters[9])),nmanager)),ncol=3,byrow=T)
+	prior = matrix(c(rep(c(parameters[2],parameters[3],1-(parameters[2]+parameters[3])),ngoalie),
+									 rep(c(parameters[4],parameters[5],1-(parameters[4]+parameters[5])),nspinner),
+									 rep(c(parameters[6],parameters[7],1-(parameters[6]+parameters[7])),ngardener),
+									 rep(c(parameters[8],parameters[9],1-(parameters[8]+parameters[9])),nmanager)),ncol=3,byrow=T)
 
-  likelihood = cbind(
-    agent.bad(parameters[1],df.tmp,reward),
-    agent.average(parameters[1],df.tmp,reward),
-    agent.good(parameters[1],df.tmp,reward)
-  )
-  posterior_fit = prior*likelihood/rowSums(prior*likelihood)
-  return(posterior_fit)
+	likelihood = cbind(
+		agent.bad(parameters[1],df.tmp,reward),
+		agent.average(parameters[1],df.tmp,reward),
+		agent.good(parameters[1],df.tmp,reward)
+	)
+	posterior_fit = prior*likelihood/rowSums(prior*likelihood)
+	return(posterior_fit)
 }
 
 expected_reward = function(){
-  situations = list()
-  exp_r_prior = list()
-  exp_r_prior_scaled = list()
+	situations = list()
+	exp_r_prior = list()
+	exp_r_prior_scaled = list()
 
-  # SITUATIONS: GOALIE & SPINNER
-  situations[["goalie_spinner"]] = expand.grid(probability = seq(0.1,0.9,0.05), outcome = c(0,1)) %>%
-    mutate(probability_counterfactual = 1-probability,
-           outcome_counterfactual = 1-outcome,
-           probability.overall = ifelse(outcome == 1, probability, probability_counterfactual),
-           probability.overall = probability.overall/sum(probability.overall))
+	# SITUATIONS: GOALIE & SPINNER
+	situations[["goalie_spinner"]] = expand.grid(probability = seq(0.1,0.9,0.05), outcome = c(0,1)) %>%
+		mutate(probability_counterfactual = 1-probability,
+					 outcome_counterfactual = 1-outcome,
+					 probability.overall = ifelse(outcome == 1, probability, probability_counterfactual),
+					 probability.overall = probability.overall/sum(probability.overall))
 
-  # SITUATIONS: GADENER
-  situations[["gardener"]] = expand.grid(probability = seq(0.1,0.9,0.05), outcome = c(0,1),
-                                         probability_counterfactual = seq(0.1,0.9,0.05), outcome_counterfactual = c(0,1)) %>%
-    mutate(probability.overall = (1-abs(probability-outcome))*(1-abs(probability_counterfactual-outcome_counterfactual)),
-           probability.overall = probability.overall/sum(probability.overall))
+	# SITUATIONS: GADENER
+	situations[["gardener"]] = expand.grid(probability = seq(0.1,0.9,0.05), outcome = c(0,1),
+																				 probability_counterfactual = seq(0.1,0.9,0.05), outcome_counterfactual = c(0,1)) %>%
+		mutate(probability.overall = (1-abs(probability-outcome))*(1-abs(probability_counterfactual-outcome_counterfactual)),
+					 probability.overall = probability.overall/sum(probability.overall))
 
 
-  # SITUATIONS: MANAGER
-  situations[["manager"]] = expand.grid(prior1 = seq(0.1,0.9,0.1), outcome1 = c(0,1),
-                                        prior2 = 0.5, outcome2 = c(0,1),
-                                        prior3 = seq(0.1,0.9,0.1), outcome3 = c(0,1)) %>%
-    mutate(probability1 = ifelse(outcome1 == 1, prior1,1-prior1),
-           probability2 = ifelse(outcome2 == 1, prior2,1-prior2),
-           probability3 = ifelse(outcome3 == 1, prior3,1-prior3),
-           probability.overall = probability1*probability2*probability2,
-           probability.overall = probability.overall/sum(probability.overall),
-           outcome = ifelse((outcome3 == 1 & (outcome1 == 1 | outcome2 == 1)),1,0),
-           outcome_counterfactual = ifelse((outcome1 == 1 & (outcome2 == 1 | outcome3 == 1)),1,0)) %>%
-    select(-probability1,-probability2,-probability3) %>%
-    mutate(probability = (1-(1-prior1)*(1-prior2))*prior3,
-           probability_counterfactual =(1-(1-prior3)*(1-prior2))*prior1)
+	# SITUATIONS: MANAGER
+	situations[["manager"]] = expand.grid(prior1 = seq(0.1,0.9,0.1), outcome1 = c(0,1),
+																				prior2 = 0.5, outcome2 = c(0,1),
+																				prior3 = seq(0.1,0.9,0.1), outcome3 = c(0,1)) %>%
+		mutate(probability1 = ifelse(outcome1 == 1, prior1,1-prior1),
+					 probability2 = ifelse(outcome2 == 1, prior2,1-prior2),
+					 probability3 = ifelse(outcome3 == 1, prior3,1-prior3),
+					 probability.overall = probability1*probability2*probability2,
+					 probability.overall = probability.overall/sum(probability.overall),
+					 outcome = ifelse((outcome3 == 1 & (outcome1 == 1 | outcome2 == 1)),1,0),
+					 outcome_counterfactual = ifelse((outcome1 == 1 & (outcome2 == 1 | outcome3 == 1)),1,0)) %>%
+		select(-probability1,-probability2,-probability3) %>%
+		mutate(probability = (1-(1-prior1)*(1-prior2))*prior3,
+					 probability_counterfactual =(1-(1-prior3)*(1-prior2))*prior1)
 
-  situation.names = c("goalie_spinner","gardener","manager")
+	situation.names = c("goalie_spinner","gardener","manager")
 
-  for(i in 1:length(situation.names)){
-    #expected reward prior
-    situations[[situation.names[i]]]$agent.bad = agent.bad(beta,situations[[situation.names[i]]],reward)
-    situations[[situation.names[i]]]$agent.average = agent.average(beta,situations[[situation.names[i]]],reward)
-    situations[[situation.names[i]]]$agent.good = agent.good(beta,situations[[situation.names[i]]],reward)
+	for(i in 1:length(situation.names)){
+		#expected reward prior
+		situations[[situation.names[i]]]$agent.bad = agent.bad(beta,situations[[situation.names[i]]],reward)
+		situations[[situation.names[i]]]$agent.average = agent.average(beta,situations[[situation.names[i]]],reward)
+		situations[[situation.names[i]]]$agent.good = agent.good(beta,situations[[situation.names[i]]],reward)
 
-    exp_r_prior[[situation.names[i]]] = situations[[situation.names[i]]] %>%
-      summarise(exp_r_prior.bad = sum((agent.bad*outcome + ((1-agent.bad)*outcome_counterfactual))*probability.overall),
-                exp_r_prior.average = sum((agent.average*outcome + ((1-agent.average)*outcome_counterfactual))*probability.overall),
-                exp_r_prior.good = sum((agent.good*outcome + ((1-agent.good)*outcome_counterfactual))*probability.overall))
+		exp_r_prior[[situation.names[i]]] = situations[[situation.names[i]]] %>%
+			summarise(exp_r_prior.bad = sum((agent.bad*outcome + ((1-agent.bad)*outcome_counterfactual))*probability.overall),
+								exp_r_prior.average = sum((agent.average*outcome + ((1-agent.average)*outcome_counterfactual))*probability.overall),
+								exp_r_prior.good = sum((agent.good*outcome + ((1-agent.good)*outcome_counterfactual))*probability.overall))
 
-    #rescale expected prior rewards
-    exp_r_prior_scaled[[situation.names[i]]] = rescale(exp_r_prior[[situation.names[i]]],to=c(0,1),from = range(exp_r_prior[[situation.names[i]]]))
-  }
-  return(exp_r_prior_scaled)
+		#rescale expected prior rewards
+		exp_r_prior_scaled[[situation.names[i]]] = rescale(exp_r_prior[[situation.names[i]]] %>% as.numeric(),to=c(0,1),from = range(exp_r_prior[[situation.names[i]]]))
+	}
+	return(exp_r_prior_scaled)
 }
 
 difference_in_expected_reward = function(){
-  inference.names = c(rep("goalie_spinner",2),"gardener","manager")
-  experiment.names = c("goalie","spinner","gardener","manager")
-  exp_r_difference.list = list()
-  for(i in 1:length(inference.list)){
-    df.tmp = inference.list[[i]] %>%
-      group_by(situation,agent) %>%
-      summarise(rating = mean(rating)/100) %>%
-      ungroup %>%
-      spread(agent,rating) %>%
-      mutate(exp_r_prior_sum = sum(prior.list[[names(inference.list[i])]]*exp_r_prior_scaled[[inference.names[i]]]), #prior expected reward
-             exp_r_posterior = rowSums(matrix(c(bad_agent,average_agent,good_agent),ncol=3) *
-                                         matrix(unlist(rep(exp_r_prior_scaled[[inference.names[i]]],8)),byrow=T,ncol=3)), #posterior expected reward
-             exp_r_difference = exp_r_posterior - exp_r_prior_sum#expected reward difference
-             )
+	inference.names = c(rep("goalie_spinner",2),"gardener","manager")
+	experiment.names = c("goalie","spinner","gardener","manager")
+	exp_r_difference.list = list()
+	for(i in 1:length(inference.list)){
+		df.tmp = inference.list[[i]] %>%
+			group_by(situation,agent) %>%
+			summarise(rating = mean(rating)/100) %>%
+			ungroup %>%
+			spread(agent,rating) %>%
+			mutate(exp_r_prior_sum = sum(prior.list[[names(inference.list[i])]]*exp_r_prior_scaled[[inference.names[i]]]), #prior expected reward
+						 exp_r_posterior = rowSums(matrix(c(bad_agent,average_agent,good_agent),ncol=3) *
+																				 matrix(unlist(rep(exp_r_prior_scaled[[inference.names[i]]],8)),byrow=T,ncol=3)), #posterior expected reward
+						 exp_r_difference = exp_r_posterior - exp_r_prior_sum#expected reward difference
+						 )
 
-    exp_r_difference.list[[names(inference.list[i])]] = select(df.tmp,situation,exp_r_difference)
-  }
-  return(exp_r_difference.list)
+		exp_r_difference.list[[names(inference.list[i])]] = select(df.tmp,situation,exp_r_difference)
+	}
+	return(exp_r_difference.list)
 }
 
 ```
@@ -1582,63 +1607,63 @@ cv.results = list()
 
 for (i in 1:nsims){
 
-  set.seed(seeds[i])
-  cases = sample(1:nrow(df.cv))[1:(nrow(df.cv)/2)] #split half cross-validation
+	set.seed(seeds[i])
+	cases = sample(1:nrow(df.cv))[1:(nrow(df.cv)/2)] #split half cross-validation
 
-  df.training = df.cv %>%
-    filter(row_number() %in% cases) %>%
-    arrange(experiment)
+	df.training = df.cv %>%
+		filter(row_number() %in% cases) %>%
+		arrange(experiment)
 
-  df.test = df.cv %>%
-    filter(!row_number() %in% cases) %>%
-    arrange(experiment)
+	df.test = df.cv %>%
+		filter(!row_number() %in% cases) %>%
+		arrange(experiment)
 
-  df.tmp = df.training
-  fit.prior = optim(par = runif(9,0,1),fit_prior_cv,method = "L-BFGS-B",
-                    lower = rep(0, 9), upper = c(100,rep(1,8)))
+	df.tmp = df.training
+	fit.prior = optim(par = runif(9,0,1),fit_prior_cv,method = "L-BFGS-B",
+										lower = rep(0, 9), upper = c(100,rep(1,8)))
 
-  beta = fit.prior$par[1]
-  prior.list = list()
-  prior.list[["goalie"]] = c(fit.prior$par[2],fit.prior$par[3],1-sum(fit.prior$par[2],fit.prior$par[3]))
-  prior.list[["spinner"]] = c(fit.prior$par[4],fit.prior$par[5],1-sum(fit.prior$par[4],fit.prior$par[5]))
-  prior.list[["manager"]] = c(fit.prior$par[6],fit.prior$par[7],1-sum(fit.prior$par[6],fit.prior$par[7]))
-  prior.list[["gardener"]] = c(fit.prior$par[8],fit.prior$par[9],1-sum(fit.prior$par[8],fit.prior$par[9]))
+	beta = fit.prior$par[1]
+	prior.list = list()
+	prior.list[["goalie"]] = c(fit.prior$par[2],fit.prior$par[3],1-sum(fit.prior$par[2],fit.prior$par[3]))
+	prior.list[["spinner"]] = c(fit.prior$par[4],fit.prior$par[5],1-sum(fit.prior$par[4],fit.prior$par[5]))
+	prior.list[["manager"]] = c(fit.prior$par[6],fit.prior$par[7],1-sum(fit.prior$par[6],fit.prior$par[7]))
+	prior.list[["gardener"]] = c(fit.prior$par[8],fit.prior$par[9],1-sum(fit.prior$par[8],fit.prior$par[9]))
 
-  exp_r_prior_scaled = expected_reward()
-  difference = difference_in_expected_reward()
+	exp_r_prior_scaled = expected_reward()
+	difference = difference_in_expected_reward()
 
-  differences = data.frame()
+	differences = data.frame()
 
-  for (j in 1:length(difference)){
-    tmp = difference[[j]]
-    differences = rbind(differences,tmp)
-  }
+	for (j in 1:length(difference)){
+		tmp = difference[[j]]
+		differences = rbind(differences,tmp)
+	}
 
-  differences = differences %>%
-    mutate(experiment = rep(experiment.names,each=8),
-           situation.index = rep(1:8,4))
+	differences = differences %>%
+		mutate(experiment = rep(experiment.names,each=8),
+					 situation.index = rep(1:8,4))
 
-  df.tmp = df.tmp %>%
-    merge(.,differences %>% select(experiment,situation.index,exp_r_difference))
+	df.tmp = df.tmp %>%
+		merge(.,differences %>% select(experiment,situation.index,exp_r_difference))
 
-  # model = "rating~pivotality+exp_r_difference"
-  model = "rating~exp_r_difference"
-  fit.regression = lm(formula = paste0(model),data=df.tmp)
+	# model = "rating~pivotality+exp_r_difference"
+	model = "rating~exp_r_difference"
+	fit.regression = lm(formula = paste0(model),data=df.tmp)
 
-  model.fit = df.test %>%
-    merge(.,differences %>% select(experiment,situation.index,exp_r_difference)) %>%
-    mutate(prediction = predict(fit.regression,.)) %>%
-    mutate_each(funs(abs),rating,prediction) %>%
-    summarise(r = cor(rating,prediction),
-              rmse = sqrt(mean((rating-prediction)^2))
-              )
+	model.fit = df.test %>%
+		merge(.,differences %>% select(experiment,situation.index,exp_r_difference)) %>%
+		mutate(prediction = predict(fit.regression,.)) %>%
+		mutate_each(funs(abs),rating,prediction) %>%
+		summarise(r = cor(rating,prediction),
+							rmse = sqrt(mean((rating-prediction)^2))
+							)
 
-  cv.results[['parameters']][[i]] = as.data.frame(matrix(fit.prior$par,nrow=1)) %>%
-    setNames(c('beta','goalie_bad','goalie_average','spinner_bad','spinner_average','manager_bad',
-             'manager_average','gardener_bad','gardener_average'))
-  cv.results[['regression']][[i]] = as.data.frame(matrix(fit.regression$coefficients,nrow=1))
-  cv.results[['model']][[i]] = model.fit
-  cv.results[['training']][[i]] = cases
+	cv.results[['parameters']][[i]] = as.data.frame(matrix(fit.prior$par,nrow=1)) %>%
+		setNames(c('beta','goalie_bad','goalie_average','spinner_bad','spinner_average','manager_bad',
+						 'manager_average','gardener_bad','gardener_average'))
+	cv.results[['regression']][[i]] = as.data.frame(matrix(fit.regression$coefficients,nrow=1))
+	cv.results[['model']][[i]] = model.fit
+	cv.results[['training']][[i]] = cases
 }
 
 ```
@@ -1659,30 +1684,30 @@ cv.results = list()
 # Models which include difference in expectations
 for (i in 1:nsims){
 
-  set.seed(seeds[i])
-  cases = sample(1:nrow(df.cv))[1:(nrow(df.cv)/2)] #split half cross-validation
+	set.seed(seeds[i])
+	cases = sample(1:nrow(df.cv))[1:(nrow(df.cv)/2)] #split half cross-validation
 
-  df.training = df.cv %>%
-    filter(row_number() %in% cases) %>%
-    arrange(experiment)
+	df.training = df.cv %>%
+		filter(row_number() %in% cases) %>%
+		arrange(experiment)
 
-  df.test = df.cv %>%
-    filter(!row_number() %in% cases) %>%
-    arrange(experiment)
+	df.test = df.cv %>%
+		filter(!row_number() %in% cases) %>%
+		arrange(experiment)
 
-  model = "rating~pivotality"
-  # model = "rating~optimality*outcome"
-  fit.regression = lm(formula = paste0(model),data=df.training)
+	model = "rating~pivotality"
+	# model = "rating~optimality*outcome"
+	fit.regression = lm(formula = paste0(model),data=df.training)
 
-  model.fit = df.test %>%
-    mutate(prediction = predict(fit.regression,.)) %>%
-    mutate_each(funs(abs),rating,prediction) %>%
-    summarise(r = cor(rating,prediction),
-              rmse = sqrt(mean((rating-prediction)^2))
-    )
-  cv.results[['regression']][[i]] = as.data.frame(matrix(fit.regression$coefficients,nrow=1))
-  cv.results[['model']][[i]] = model.fit
-  cv.results[['training']][[i]] = cases
+	model.fit = df.test %>%
+		mutate(prediction = predict(fit.regression,.)) %>%
+		mutate_each(funs(abs),rating,prediction) %>%
+		summarise(r = cor(rating,prediction),
+							rmse = sqrt(mean((rating-prediction)^2))
+		)
+	cv.results[['regression']][[i]] = as.data.frame(matrix(fit.regression$coefficients,nrow=1))
+	cv.results[['model']][[i]] = model.fit
+	cv.results[['training']][[i]] = cases
 }
 
 ```
@@ -1694,18 +1719,17 @@ for (i in 1:nsims){
 df.parameters = data.frame()
 
 for(i in 1:nsims){
-  df.parameters = rbind(df.parameters,cbind(cv.results$regression[[i]],cv.results$model[[i]]))
+	df.parameters = rbind(df.parameters,cbind(cv.results$regression[[i]],cv.results$model[[i]]))
 }
 
 df.parameters %>%
-  mutate(z = fisherz(r)) %>%
-  summarize(r_mean = fisherz2r(mean(z)),
-            r_quantile_low = fisherz2r(quantile(z,probs = c(0.05))),
-            r_quantile_high =fisherz2r(quantile(z,probs = c(0.95))),
-            rmse_mean = mean(rmse),
-            rmse_quantile_low = quantile(rmse,probs = c(0.05)),
-            rmse_quantile_high = quantile(rmse,probs = c(0.95))) %>%
-  round(3)
+	mutate(z = fisherz(r)) %>%
+	summarize(r_mean = fisherz2r(mean(z)),
+						r_quantile_low = fisherz2r(quantile(z,probs = c(0.05))),
+						r_quantile_high =fisherz2r(quantile(z,probs = c(0.95))),
+						rmse_mean = mean(rmse),
+						rmse_quantile_low = quantile(rmse,probs = c(0.05)),
+						rmse_quantile_high = quantile(rmse,probs = c(0.95))) %>%
+	round(3)
 
 ```
-
