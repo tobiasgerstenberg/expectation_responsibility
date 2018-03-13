@@ -34,7 +34,7 @@ A direct link to the analysis and plots is [here](https://rawgit.com/tobiasgerst
 
 ## Figures
 
-The figures accessed [here](https://github.com/tobiasgerstenberg/expectation_responsibility/tree/master/figures). 
+The figures can be accessed [here](https://github.com/tobiasgerstenberg/expectation_responsibility/tree/master/figures). 
 
 ### Plots 
 

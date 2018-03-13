@@ -669,16 +669,16 @@ df.table = df.posteriors %>%
   mutate_at(vars(contains("agent")), funs(. %>% round(2))) %>%
   mutate(probability = ifelse(probability == 45.5, 70, probability),
          probability = ifelse(probability == 25.5, 30, probability)) %>%
-  select(everything(),-bad_agent,-average_agent,-good_agent,everything()) %>%
-  kable(caption = "Agent inferences")
+  select(everything(),-bad_agent,-average_agent,-good_agent,everything())
+kable(df.table,caption = "Agent inferences")
 
 #+ Responsibility judgments longtable  -----------------------------------------------------------------------
 #' ## Responsibility judgments longtable
 df.table = df.regression %>%
   rename(rating = mean) %>%
   select(experiment,probability,outcome,difference,pivotality,p.difference_pivotality,rating) %>%
-  mutate_at(vars(difference,p.difference_pivotality,rating),funs(round(.,2))) %>%
-  kable(caption = "Responsibility judgments")
+  mutate_at(vars(difference,p.difference_pivotality,rating),funs(round(.,2)))
+kable(df.table,caption = "Responsibility judgments")
 
 #+ STATS  ---------------------------------------------------------------------------------------
 #' # STATS
