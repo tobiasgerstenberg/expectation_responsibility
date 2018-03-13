@@ -32,6 +32,18 @@ The analysis and plotting code can be accessed [here](https://github.com/tobiasg
 
 A direct link to the analysis and plots is [here](https://rawgit.com/tobiasgerstenberg/expectation_responsibility/master/code/R/analysis.html).
 
+## Figures
+
+The figures accessed [here](https://github.com/tobiasgerstenberg/expectation_responsibility/tree/master/figures). 
+
+### Plots 
+
+The different plots shown in the paper. 
+
+### Diagrams 
+
+The diagrams shown in the paper. 
+
 ## Presentation 
 
 A presentation of the results can be accessed [here](https://github.com/tobiasgerstenberg/expectation_responsibility/tree/master/presentation/lucky_clever_presentation.pdf).
