@@ -1,6 +1,6 @@
 # Lucky or clever?
 
-This repository contains materials of the paper "Lucky or clever? From expectations to attributions of responsibility". For any questions, please send me an email [mailto:tobias.gerstenberg@gmail.com](tobias.gerstenberg@gmail.com).
+This repository contains materials of the paper "Lucky or clever? From expectations to attributions of responsibility". For any questions, please send me an email ([tobias.gerstenberg@gmail.com](mailto:tobias.gerstenberg@gmail.com)).
 
 ## Code 
 
