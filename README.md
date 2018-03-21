@@ -41,10 +41,3 @@ The different plots shown in the paper.
 ### Diagrams 
 
 The diagrams shown in the paper. 
-
-## Presentation 
-
-A presentation of the results can be accessed [here](https://github.com/tobiasgerstenberg/expectation_responsibility/tree/master/presentation/lucky_clever_presentation.pdf).
-
-
-
